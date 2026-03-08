@@ -71,24 +71,64 @@ const getBarPosition = (value: number, thresholds: MetricThresholds) => {
   return Math.min((value / max) * 100, 98);
 };
 
-const MetricBar = ({ value, thresholds }: { value: number; thresholds: MetricThresholds }) => {
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+const MetricBar = ({ value, thresholds, animate = true }: { value: number; thresholds: MetricThresholds; animate?: boolean }) => {
   const position = getBarPosition(value, thresholds);
   const status = getMetricStatus(value, thresholds);
-  // Calculate segment widths based on thresholds
   const max = thresholds.needsImprovement * 1.5;
   const greenWidth = (thresholds.good / max) * 100;
   const yellowWidth = ((thresholds.needsImprovement - thresholds.good) / max) * 100;
   const redWidth = 100 - greenWidth - yellowWidth;
 
+  const [animatedPos, setAnimatedPos] = useState(animate ? 0 : position);
+  const [visible, setVisible] = useState(!animate);
+  const ref = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<number>();
+
+  useEffect(() => {
+    if (!animate) return;
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.3 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [animate]);
+
+  useEffect(() => {
+    if (!visible || !animate) { setAnimatedPos(position); return; }
+    const duration = 900;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / duration, 1);
+      setAnimatedPos(easeOutCubic(p) * position);
+      if (p < 1) frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [visible, position, animate]);
+
   return (
-    <div className="relative w-full h-2 rounded-full overflow-hidden flex mt-2">
-      <div className="bg-score-excellent/80 h-full" style={{ width: `${greenWidth}%` }} />
-      <div className="bg-score-average/80 h-full" style={{ width: `${yellowWidth}%` }} />
-      <div className="bg-score-poor/80 h-full" style={{ width: `${redWidth}%` }} />
+    <div ref={ref} className="relative w-full h-2 rounded-full overflow-visible flex mt-2">
+      {/* Track segments with staggered fade-in */}
+      <div
+        className="bg-score-excellent/80 h-full rounded-l-full transition-all duration-700"
+        style={{ width: visible ? `${greenWidth}%` : "0%", transitionDelay: "0ms" }}
+      />
+      <div
+        className="bg-score-average/80 h-full transition-all duration-700"
+        style={{ width: visible ? `${yellowWidth}%` : "0%", transitionDelay: "100ms" }}
+      />
+      <div
+        className="bg-score-poor/80 h-full rounded-r-full transition-all duration-700"
+        style={{ width: visible ? `${redWidth}%` : "0%", transitionDelay: "200ms" }}
+      />
       {/* Position indicator */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
-        style={{ left: `${position}%` }}
+        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 transition-opacity duration-500"
+        style={{ left: `${animatedPos}%`, opacity: visible ? 1 : 0 }}
       >
         <div className={cn(
           "h-4 w-4 rounded-full border-2 border-background shadow-md",
@@ -99,13 +139,39 @@ const MetricBar = ({ value, thresholds }: { value: number; thresholds: MetricThr
   );
 };
 
-const MetricCard = ({ metric }: { metric: CWVMetric }) => {
+const MetricCard = ({ metric, delay = 0 }: { metric: CWVMetric; delay?: number }) => {
   const status = getMetricStatus(metric.value, metric.thresholds);
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setVisible(true); obs.disconnect(); }
+    }, { threshold: 0.2 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   return (
-    <div className="flex-1 min-w-[160px] p-4">
+    <div
+      ref={ref}
+      className="flex-1 min-w-[160px] p-4 transition-all duration-500 ease-out"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(12px)",
+        transitionDelay: `${delay}ms`,
+      }}
+    >
       <div className="flex items-center gap-2 mb-1">
-        <span className={cn("h-2 w-2 rounded-full", getStatusColor(status))} />
+        <span className={cn(
+          "h-2 w-2 rounded-full transition-transform duration-500",
+          getStatusColor(status),
+          visible ? "scale-100" : "scale-0"
+        )}
+          style={{ transitionDelay: `${delay + 200}ms` }}
+        />
         <span className="text-xs text-muted-foreground font-medium">{metric.name}</span>
       </div>
       <p className={cn("text-2xl font-display font-bold", getStatusTextColor(status))}>
