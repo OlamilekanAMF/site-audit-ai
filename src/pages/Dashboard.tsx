@@ -60,6 +60,25 @@ const Dashboard = () => {
     return "text-score-poor";
   };
 
+  const getScoreBg = (score: number | null) => {
+    if (!score) return "bg-muted";
+    if (score >= 80) return "bg-score-excellent/10";
+    if (score >= 60) return "bg-score-good/10";
+    if (score >= 40) return "bg-score-average/10";
+    return "bg-score-poor/10";
+  };
+
+  const extractScores = (report: ScanReport) => {
+    const r = report.results;
+    if (!r) return { performance: null, seo: null, accessibility: null };
+    const mobile = r.mobile || {};
+    return {
+      performance: mobile.performance ?? r.desktop?.performance ?? null,
+      seo: mobile.seo ?? r.desktop?.seo ?? null,
+      accessibility: mobile.accessibility ?? r.desktop?.accessibility ?? null,
+    };
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
