@@ -296,7 +296,37 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Danger Zone */}
+        {/* Export Data */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="font-display text-base">Export Data</CardTitle>
+            </div>
+            <CardDescription>Download all your scan reports as a JSON file.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Export All Reports</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Download a JSON file containing all your scan data and results.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 shrink-0"
+                onClick={handleExportData}
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                Export JSON
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-destructive/30">
           <CardHeader>
             <div className="flex items-center gap-2">
