@@ -134,7 +134,32 @@ const Settings = () => {
     setChangingPassword(false);
   };
 
-  const initials = fullName
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from("scan_reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Export complete", description: `${data?.length || 0} reports exported.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+    setExporting(false);
+  };
+
     ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.charAt(0).toUpperCase() || "?";
 
