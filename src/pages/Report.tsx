@@ -557,6 +557,7 @@ const Report = () => {
           <TabsList>
             <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
             <TabsTrigger value="charts">Charts</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="issues">Issues & Opportunities</TabsTrigger>
             <TabsTrigger value="ai">AI Recommendations</TabsTrigger>
           </TabsList>
