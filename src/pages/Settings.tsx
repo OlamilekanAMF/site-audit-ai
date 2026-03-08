@@ -112,6 +112,27 @@ const Settings = () => {
     setSaving(false);
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      toast({ title: "Password too short", description: "Must be at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please make sure both passwords match.", variant: "destructive" });
+      return;
+    }
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      toast({ title: "Failed to update password", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Password updated" });
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setChangingPassword(false);
+  };
+
   const initials = fullName
     ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.charAt(0).toUpperCase() || "?";
