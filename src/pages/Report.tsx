@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScoreGauge, getScoreTextClass } from "@/components/ScoreGauge";
 import {
   ArrowLeft,
   Download,
@@ -25,6 +27,9 @@ import {
   TrendingUp,
   Lightbulb,
   BarChart3,
+  Globe,
+  ChevronRight,
+  Info,
 } from "lucide-react";
 import {
   ChartContainer,
@@ -33,49 +38,26 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  Radar,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
   LineChart,
   Line,
   CartesianGrid,
+  XAxis,
+  YAxis,
   Legend,
   Tooltip,
 } from "recharts";
 
 const chartConfig = {
-  mobile: { label: "Mobile", color: "hsl(var(--primary))" },
-  desktop: { label: "Desktop", color: "hsl(var(--accent))" },
-  score: { label: "Score", color: "hsl(var(--primary))" },
+  performance: { label: "Performance", color: "hsl(var(--primary))" },
+  seo: { label: "SEO", color: "hsl(var(--accent))" },
+  accessibility: { label: "Accessibility", color: "hsl(var(--score-good))" },
+  overall: { label: "Overall", color: "hsl(var(--foreground))" },
 } satisfies ChartConfig;
-
-const impactColors: Record<string, string> = {
-  high: "bg-score-poor/10 text-score-poor border-score-poor/20",
-  medium: "bg-score-average/10 text-score-average border-score-average/20",
-  low: "bg-score-excellent/10 text-score-excellent border-score-excellent/20",
-};
-
-const effortLabels: Record<string, string> = {
-  easy: "🟢 Easy",
-  moderate: "🟡 Moderate",
-  hard: "🔴 Hard",
-};
 
 const getScoreColor = (score: number) => {
   if (score >= 90) return "text-score-excellent";
   if (score >= 50) return "text-score-average";
   return "text-score-poor";
-};
-
-const getScoreBorderColor = (score: number) => {
-  if (score >= 90) return "border-score-excellent";
-  if (score >= 50) return "border-score-average";
-  return "border-score-poor";
 };
 
 const getScoreBg = (score: number) => {
@@ -90,94 +72,25 @@ const getScoreLabel = (score: number) => {
   return "Poor";
 };
 
-const getCwvIcon = (score: number) => {
+const getSeverityIcon = (score: number) => {
   if (score >= 0.9) return <CheckCircle className="h-4 w-4 text-score-excellent" />;
   if (score >= 0.5) return <AlertTriangle className="h-4 w-4 text-score-average" />;
   return <XCircle className="h-4 w-4 text-score-poor" />;
 };
 
-// -- Score Circle Component --
-const ScoreCircle = ({ score, label, size = "lg" }: { score: number; label: string; size?: "sm" | "lg" }) => {
-  const dims = size === "lg" ? "h-28 w-28" : "h-20 w-20";
-  const textSize = size === "lg" ? "text-4xl" : "text-2xl";
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <div className={`${dims} rounded-full border-4 flex items-center justify-center ${getScoreBorderColor(score)}`}>
-        <span className={`font-display ${textSize} font-bold ${getScoreColor(score)}`}>{score}</span>
-      </div>
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <Badge className={`${getScoreBg(score)} text-white border-0 text-xs`}>{getScoreLabel(score)}</Badge>
-    </div>
-  );
+// Metric status dot
+const MetricDot = ({ score }: { score: number }) => {
+  const colorClass = score >= 0.9 ? "bg-score-excellent" : score >= 0.5 ? "bg-score-average" : "bg-score-poor";
+  return <span className={`inline-block h-3 w-3 rounded-full ${colorClass}`} />;
 };
-
-// -- Suggestion Section Component --
-const SuggestionSection = ({
-  title,
-  icon,
-  suggestions,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  suggestions: any[];
-}) => (
-  <div className="space-y-4">
-    <h3 className="font-display text-sm font-semibold flex items-center gap-2">{icon} {title}</h3>
-    {!suggestions || suggestions.length === 0 ? (
-      <p className="text-sm text-muted-foreground py-2">No suggestions in this category.</p>
-    ) : (
-      suggestions.map((s: any, i: number) => (
-        <div key={i} className="p-5 rounded-lg border border-border space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-sm font-semibold">{s.title}</p>
-            <div className="flex gap-2 shrink-0">
-              <Badge variant="outline" className={`text-xs ${impactColors[s.impact] || ""}`}>
-                {s.impact} impact
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                {effortLabels[s.effort] || s.effort}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Rich format: explanation, why it matters, how to fix */}
-          {s.explanation ? (
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">What's happening</p>
-                <p className="text-muted-foreground">{s.explanation}</p>
-              </div>
-              {s.whyItMatters && (
-                <div className="pl-3 border-l-2 border-score-average/40">
-                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">Why it matters</p>
-                  <p className="text-muted-foreground">{s.whyItMatters}</p>
-                </div>
-              )}
-              {s.howToFix && (
-                <div className="p-3 rounded-md bg-muted/50 flex items-start gap-2">
-                  <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-xs text-primary uppercase tracking-wide mb-1">How to fix</p>
-                    <p className="text-muted-foreground">{s.howToFix}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Fallback for old format */
-            <p className="text-sm text-muted-foreground">{s.description}</p>
-          )}
-        </div>
-      ))
-    )}
-  </div>
-);
 
 const Report = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [deviceTab, setDeviceTab] = useState("mobile");
   const [historyScans, setHistoryScans] = useState<any[]>([]);
 
   useEffect(() => {
@@ -189,7 +102,6 @@ const Report = () => {
         .single();
       if (data) {
         setReport(data);
-        // Fetch all completed scans for the same URL
         const { data: history } = await supabase
           .from("scan_reports")
           .select("id, created_at, overall_score, results, url")
@@ -212,10 +124,6 @@ const Report = () => {
         fullDate: new Date(scan.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
         id: scan.id,
         overall: scan.overall_score || 0,
-        lcp: cwv.lcp?.value ? Math.round(cwv.lcp.value) : null,
-        cls: cwv.cls?.value != null ? Number(cwv.cls.value.toFixed(3)) : null,
-        tbt: cwv.tbt?.value ? Math.round(cwv.tbt.value) : null,
-        fcp: cwv.fcp?.value ? Math.round(cwv.fcp.value) : null,
         performance: scan.results?.mobile?.performance || 0,
         seo: scan.results?.mobile?.seo || 0,
         accessibility: scan.results?.mobile?.accessibility || 0,
@@ -226,6 +134,7 @@ const Report = () => {
   const results = report?.results || {};
   const mobile = results.mobile || {};
   const desktop = results.desktop || {};
+  const activeDevice = deviceTab === "mobile" ? mobile : desktop;
   const coreWebVitals = results.coreWebVitals || {};
   const loadTime = results.loadTime || {};
   const opportunities = results.opportunities || [];
@@ -233,15 +142,13 @@ const Report = () => {
   const aiSuggestions = results.aiSuggestions || null;
   const detectedIssues: any[] = results.detectedIssues || [];
 
-  const barData = [
-    { category: "Performance", mobile: mobile.performance || 0, desktop: desktop.performance || 0 },
-    { category: "SEO", mobile: mobile.seo || 0, desktop: desktop.seo || 0 },
-    { category: "Accessibility", mobile: mobile.accessibility || 0, desktop: desktop.accessibility || 0 },
-    { category: "Best Practices", mobile: mobile.bestPractices || 0, desktop: desktop.bestPractices || 0 },
-  ];
+  // Build sections from data
+  const perfScore = activeDevice.performance || 0;
+  const a11yScore = activeDevice.accessibility || 0;
+  const bpScore = activeDevice.bestPractices || 0;
+  const seoScore = activeDevice.seo || 0;
 
-  const radarData = barData.map((d) => ({ category: d.category, score: d.mobile }));
-
+  // PDF generation (preserved from original)
   const handleDownloadPdf = useCallback(async () => {
     if (!report) return;
     setGenerating(true);
@@ -249,56 +156,29 @@ const Report = () => {
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const W = doc.internal.pageSize.getWidth();
       const pageMargin = 18;
-      const cW = W - pageMargin * 2;
       let y = 20;
-
       const addPage = () => { doc.addPage(); y = 20; };
       const checkPage = (need: number) => { if (y + need > 270) addPage(); };
 
-      // Blue gradient header
+      // Header
       const gSteps = 20;
       const hH = 52;
       for (let i = 0; i < gSteps; i++) {
         const t = i / gSteps;
-        const r = Math.round(30 + t * (59 - 30));
-        const g = Math.round(64 + t * (130 - 64));
-        const b = Math.round(175 + t * (246 - 175));
-        doc.setFillColor(r, g, b);
+        doc.setFillColor(Math.round(30 + t * 29), Math.round(64 + t * 66), Math.round(175 + t * 71));
         doc.rect(0, (hH / gSteps) * i, W, hH / gSteps + 0.5, "F");
       }
-
-      // Logo: SiteDoctor AI text branding
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.text("SiteDoctor AI", pageMargin, 14);
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(219, 234, 254);
-      doc.text("Website Performance & SEO Audit Platform", pageMargin, 19);
-
-      // Decorative line separator
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(0.3);
-      doc.line(pageMargin, 22, pageMargin + 50, 22);
-
-      // Report title
-      doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
-      doc.setFont("helvetica", "bold");
       doc.text("Website Audit Report", pageMargin, 32);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(219, 234, 254);
       doc.text(report.url, pageMargin, 39);
       doc.text(`Scan Date: ${new Date(report.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, pageMargin, 45);
-
-      // Generated date on right
-      doc.setFontSize(8);
-      doc.setTextColor(191, 219, 254);
-      const genText = `Report #${report.id.slice(0, 8).toUpperCase()}`;
-      doc.text(genText, W - pageMargin - doc.getTextWidth(genText), 14);
-
       y = 60;
 
       doc.setTextColor(17, 24, 39);
@@ -309,163 +189,50 @@ const Report = () => {
 
       const scoreColor = (s: number): [number, number, number] =>
         s >= 90 ? [22, 163, 74] : s >= 50 ? [234, 179, 8] : [220, 38, 38];
+      const cW = W - pageMargin * 2;
+      const cols = 4;
+      const colW = cW / cols;
 
-      const drawScore = (label: string, score: number, x: number) => {
+      [
+        { label: "Performance", score: perfScore },
+        { label: "Accessibility", score: a11yScore },
+        { label: "Best Practices", score: bpScore },
+        { label: "SEO", score: seoScore },
+      ].forEach(({ label, score }, idx) => {
         const [r, g, b] = scoreColor(score);
+        const x = pageMargin + colW * idx;
         doc.setFillColor(r, g, b);
         doc.circle(x + 12, y + 10, 10, "F");
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        const scoreStr = String(score);
-        doc.text(scoreStr, x + 12 - doc.getTextWidth(scoreStr) / 2, y + 14);
+        const ss = String(score);
+        doc.text(ss, x + 12 - doc.getTextWidth(ss) / 2, y + 14);
         doc.setTextColor(17, 24, 39);
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
-        const labelW2 = doc.getTextWidth(label);
-        doc.text(label, x + 12 - labelW2 / 2, y + 24);
-      };
-
-      const cols = 5;
-      const colW = cW / cols;
-      drawScore("Overall", report.overall_score || 0, pageMargin);
-      drawScore("Performance", mobile.performance || 0, pageMargin + colW);
-      drawScore("SEO", mobile.seo || 0, pageMargin + colW * 2);
-      drawScore("Accessibility", mobile.accessibility || 0, pageMargin + colW * 3);
-      drawScore("Best Practices", mobile.bestPractices || 0, pageMargin + colW * 4);
+        doc.text(label, x + 12 - doc.getTextWidth(label) / 2, y + 24);
+      });
       y += 32;
 
-      checkPage(40);
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(17, 24, 39);
-      doc.text("Mobile vs Desktop", pageMargin, y);
-      y += 7;
-      doc.setFillColor(243, 244, 246);
-      doc.rect(pageMargin, y, cW, 8, "F");
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(107, 114, 128);
-      doc.text("Category", pageMargin + 3, y + 5.5);
-      doc.text("Mobile", pageMargin + cW * 0.55, y + 5.5);
-      doc.text("Desktop", pageMargin + cW * 0.78, y + 5.5);
-      y += 10;
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(17, 24, 39);
-      for (const row of barData) {
-        doc.text(row.category, pageMargin + 3, y + 4);
-        const [mr, mg, mb] = scoreColor(row.mobile);
-        doc.setTextColor(mr, mg, mb);
-        doc.text(String(row.mobile), pageMargin + cW * 0.55, y + 4);
-        const [dr, dg, db] = scoreColor(row.desktop);
-        doc.setTextColor(dr, dg, db);
-        doc.text(String(row.desktop), pageMargin + cW * 0.78, y + 4);
-        doc.setTextColor(17, 24, 39);
-        y += 7;
-      }
-      y += 6;
-
+      // CWV
       const cwvEntries = Object.entries(coreWebVitals);
       if (cwvEntries.length > 0) {
         checkPage(30);
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        doc.text("Core Web Vitals", pageMargin, y);
-        y += 7;
-        doc.setFillColor(243, 244, 246);
-        doc.rect(pageMargin, y, cW, 8, "F");
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(107, 114, 128);
-        doc.text("Metric", pageMargin + 3, y + 5.5);
-        doc.text("Value", pageMargin + cW * 0.55, y + 5.5);
-        doc.text("Status", pageMargin + cW * 0.78, y + 5.5);
-        y += 10;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(17, 24, 39);
+        doc.text("Performance Metrics", pageMargin, y);
+        y += 8;
         for (const [, vital] of cwvEntries as [string, any][]) {
           checkPage(8);
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
           doc.text(vital.title, pageMargin + 3, y + 4);
-          doc.text(vital.displayValue, pageMargin + cW * 0.55, y + 4);
-          const status = vital.score >= 0.9 ? "Good" : vital.score >= 0.5 ? "Needs Work" : "Poor";
-          const [sr, sg, sb] = scoreColor(vital.score * 100);
-          doc.setTextColor(sr, sg, sb);
-          doc.text(status, pageMargin + cW * 0.78, y + 4);
-          doc.setTextColor(17, 24, 39);
+          doc.setFont("helvetica", "normal");
+          doc.text(vital.displayValue, pageMargin + cW * 0.6, y + 4);
           y += 7;
         }
         y += 6;
-      }
-
-      if (opportunities.length > 0) {
-        checkPage(20);
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Opportunities", pageMargin, y);
-        y += 8;
-        doc.setFontSize(9);
-        for (const opp of opportunities) {
-          checkPage(14);
-          doc.setFont("helvetica", "bold");
-          doc.text(`• ${opp.title}`, pageMargin + 2, y);
-          y += 4;
-          if (opp.savings) {
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(107, 114, 128);
-            doc.text(`  Potential savings: ${opp.savings}`, pageMargin + 4, y);
-            doc.setTextColor(17, 24, 39);
-            y += 5;
-          }
-          doc.setFont("helvetica", "normal");
-        }
-        y += 4;
-      }
-
-      const renderSection = (title: string, items: any[]) => {
-        if (!items || items.length === 0) return;
-        checkPage(20);
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(17, 24, 39);
-        doc.text(title, pageMargin, y);
-        y += 7;
-        doc.setFontSize(9);
-        for (const s of items) {
-          checkPage(20);
-          doc.setFont("helvetica", "bold");
-          doc.setTextColor(17, 24, 39);
-          doc.text(`• ${s.title}`, pageMargin + 2, y);
-          const impactLabel = `${(s.impact || "").toUpperCase()} IMPACT`;
-          const impactX = pageMargin + 4 + doc.getTextWidth(`• ${s.title}`) + 3;
-          if (impactX + doc.getTextWidth(impactLabel) + 4 < W - pageMargin) {
-            const [ir, ig, ib] = s.impact === "high" ? [220, 38, 38] as const : s.impact === "medium" ? [234, 179, 8] as const : [22, 163, 74] as const;
-            doc.setTextColor(ir, ig, ib);
-            doc.text(impactLabel, impactX, y);
-          }
-          y += 5;
-          doc.setFont("helvetica", "normal");
-          doc.setTextColor(107, 114, 128);
-          const lines = doc.splitTextToSize(s.description || "", cW - 6);
-          for (const line of lines) {
-            checkPage(5);
-            doc.text(line, pageMargin + 4, y);
-            y += 4;
-          }
-          y += 3;
-        }
-        y += 4;
-      };
-
-      if (aiSuggestions) {
-        checkPage(20);
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(17, 24, 39);
-        doc.text("AI-Generated Optimization Recommendations", pageMargin, y);
-        y += 10;
-        renderSection("Performance Fixes", aiSuggestions.performance || []);
-        renderSection("SEO Improvements", aiSuggestions.seo || []);
-        renderSection("UX & Accessibility Improvements", aiSuggestions.ux || []);
       }
 
       const pages = doc.getNumberOfPages();
@@ -475,7 +242,6 @@ const Report = () => {
         doc.setFont("helvetica", "normal");
         doc.setTextColor(156, 163, 175);
         doc.text(`Page ${i} of ${pages}`, W / 2 - 10, 290);
-        doc.text(`Generated ${new Date().toLocaleDateString()}`, pageMargin, 290);
       }
 
       const filename = `audit-report-${new URL(report.url).hostname}-${new Date(report.created_at).toISOString().slice(0, 10)}.pdf`;
@@ -485,7 +251,7 @@ const Report = () => {
     } finally {
       setGenerating(false);
     }
-  }, [report, mobile, desktop, coreWebVitals, barData, opportunities, aiSuggestions]);
+  }, [report, perfScore, a11yScore, bpScore, seoScore, coreWebVitals]);
 
   if (loading) {
     return (
@@ -505,589 +271,474 @@ const Report = () => {
     );
   }
 
+  // Build metrics for display
+  const metricsGrid = [
+    { key: "fcp", label: "First Contentful Paint", vital: coreWebVitals.fcp },
+    { key: "lcp", label: "Largest Contentful Paint", vital: coreWebVitals.lcp },
+    { key: "tbt", label: "Total Blocking Time", vital: coreWebVitals.tbt },
+    { key: "cls", label: "Cumulative Layout Shift", vital: coreWebVitals.cls },
+    { key: "si", label: "Speed Index", vital: coreWebVitals.si },
+  ].filter(m => m.vital);
 
+  // Accessibility sub-categories from detected issues
+  const a11yIssues = detectedIssues.filter((i: any) =>
+    i.category === "accessibility" || i.name?.toLowerCase().includes("aria") || i.name?.toLowerCase().includes("label") || i.name?.toLowerCase().includes("alt")
+  );
+
+  // Security/best practice issues
+  const securityIssues = detectedIssues.filter((i: any) =>
+    i.category === "security" || i.name?.toLowerCase().includes("csp") || i.name?.toLowerCase().includes("https") || i.name?.toLowerCase().includes("clickjack")
+  );
+
+  // SEO issues
+  const seoIssues = detectedIssues.filter((i: any) =>
+    i.category === "seo" || i.name?.toLowerCase().includes("meta") || i.name?.toLowerCase().includes("crawl") || i.name?.toLowerCase().includes("structured")
+  );
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <Link to="/reports" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-2">
-              <ArrowLeft className="h-3.5 w-3.5" /> Back to Reports
-            </Link>
-            <h1 className="font-display text-3xl font-bold">Audit Report</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <a href={report.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline flex items-center gap-1">
-                {report.url} <ExternalLink className="h-3.5 w-3.5" />
-              </a>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-sm text-muted-foreground">
-                {new Date(report.created_at).toLocaleDateString()}
-              </span>
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Top Section: URL bar + Analyze + device toggle */}
+        <div className="space-y-4">
+          <Link to="/reports" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Reports
+          </Link>
+
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+            <div className="relative flex-1 w-full">
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={report.url}
+                readOnly
+                className="pl-10 bg-card font-mono text-sm"
+              />
+            </div>
+            <Button
+              variant="default"
+              className="gap-2 shrink-0"
+              onClick={() => navigate(`/scan?url=${encodeURIComponent(report.url)}`)}
+            >
+              <Search className="h-4 w-4" /> Analyze
+            </Button>
+            <Button variant="outline" onClick={handleDownloadPdf} disabled={generating} className="gap-2 shrink-0">
+              <Download className="h-4 w-4" /> {generating ? "Generating..." : "PDF"}
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Tabs value={deviceTab} onValueChange={setDeviceTab}>
+              <TabsList className="h-9">
+                <TabsTrigger value="mobile" className="gap-1.5 text-xs px-3">
+                  <Smartphone className="h-3.5 w-3.5" /> Mobile
+                </TabsTrigger>
+                <TabsTrigger value="desktop" className="gap-1.5 text-xs px-3">
+                  <Monitor className="h-3.5 w-3.5" /> Desktop
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              Report from {new Date(report.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}
             </div>
           </div>
-          <Button variant="outline" onClick={handleDownloadPdf} disabled={generating} className="gap-2">
-            <Download className="h-4 w-4" /> {generating ? "Generating..." : "Download PDF"}
-          </Button>
         </div>
 
-        {/* Score Overview */}
+        {/* Score Summary Row — 4 circular gauges */}
         <Card>
-          <CardContent className="p-8">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 items-center">
-              <ScoreCircle score={report.overall_score || 0} label="Overall" size="lg" />
-              {[
-                { label: "Performance", icon: Zap, score: mobile.performance || 0 },
-                { label: "SEO", icon: Search, score: mobile.seo || 0 },
-                { label: "Accessibility", icon: Eye, score: mobile.accessibility || 0 },
-                { label: "Best Practices", icon: Shield, score: mobile.bestPractices || 0 },
-              ].map((cat) => (
-                <ScoreCircle key={cat.label} score={cat.score} label={cat.label} size="sm" />
-              ))}
+          <CardContent className="p-6 sm:p-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 justify-items-center">
+              <ScoreGauge score={perfScore} label="Performance" size={100} />
+              <ScoreGauge score={a11yScore} label="Accessibility" size={100} />
+              <ScoreGauge score={bpScore} label="Best Practices" size={100} />
+              <ScoreGauge score={seoScore} label="SEO" size={100} />
+            </div>
+            {/* Legend */}
+            <div className="flex items-center justify-center gap-6 mt-6 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-score-excellent" /> 90–100 (Good)</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-score-average" /> 50–89 (Needs Work)</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-score-poor" /> 0–49 (Poor)</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* Mobile vs Desktop Breakdown */}
-        <div className="grid md:grid-cols-4 gap-4">
-          {[
-            { label: "Performance", icon: Zap, m: mobile.performance, d: desktop.performance },
-            { label: "SEO", icon: Search, m: mobile.seo, d: desktop.seo },
-            { label: "Accessibility", icon: Eye, m: mobile.accessibility, d: desktop.accessibility },
-            { label: "Best Practices", icon: Shield, m: mobile.bestPractices, d: desktop.bestPractices },
-          ].map((cat) => (
-            <Card key={cat.label}>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <cat.icon className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">{cat.label}</p>
+        {/* Performance Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="font-display text-lg">Performance</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Score gauge + Screenshot placeholder */}
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+              <ScoreGauge score={perfScore} size={160} strokeWidth={10} />
+              <div className="flex-1 w-full rounded-lg border border-border bg-muted/30 flex items-center justify-center min-h-[180px]">
+                <div className="text-center text-muted-foreground">
+                  <Globe className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                  <p className="text-sm">Screenshot preview</p>
+                  <a href={report.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center justify-center gap-1 mt-1">
+                    Visit site <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Smartphone className="h-3 w-3" /> Mobile</span>
-                    <span className={`font-display font-bold ${getScoreColor(cat.m || 0)}`}>{cat.m || 0}</span>
-                  </div>
-                  <Progress value={cat.m || 0} className="h-1.5" />
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Monitor className="h-3 w-3" /> Desktop</span>
-                    <span className={`font-display font-bold ${getScoreColor(cat.d || 0)}`}>{cat.d || 0}</span>
-                  </div>
-                  <Progress value={cat.d || 0} className="h-1.5" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Tabbed Content */}
-        <Tabs defaultValue="vitals" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
-            <TabsTrigger value="charts">Charts</TabsTrigger>
-            <TabsTrigger value="issues-detected">Website Issues</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="issues">Opportunities</TabsTrigger>
-            <TabsTrigger value="ai">AI Recommendations</TabsTrigger>
-          </TabsList>
-
-          {/* Core Web Vitals */}
-          <TabsContent value="vitals">
-            <div className="space-y-6">
-              {/* Featured CWV Cards */}
-              <div className="grid md:grid-cols-3 gap-6">
-                {(() => {
-                  const cwvMetrics = [
-                    {
-                      key: "lcp",
-                      title: "Largest Contentful Paint (LCP)",
-                      explanation: "Measures loading performance — the time it takes for the largest visible content element to render. A good LCP is 2.5 seconds or less.",
-                      thresholds: { good: 2500, poor: 4000 },
-                      unit: "ms",
-                    },
-                    {
-                      key: "cls",
-                      title: "Cumulative Layout Shift (CLS)",
-                      explanation: "Measures visual stability — how much the page layout shifts unexpectedly during loading. A good CLS score is 0.1 or less.",
-                      thresholds: { good: 0.1, poor: 0.25 },
-                      unit: "",
-                    },
-                    {
-                      key: "inp",
-                      title: "Interaction to Next Paint (INP)",
-                      explanation: "Measures responsiveness — the delay between a user interaction and the next visual update. A good INP is 200 milliseconds or less.",
-                      thresholds: { good: 200, poor: 500 },
-                      unit: "ms",
-                      fallbackKey: "tbt",
-                      fallbackTitle: "Total Blocking Time (TBT)",
-                      fallbackExplanation: "Measures the total time the main thread was blocked, preventing input responsiveness. Used as a proxy for INP. A good TBT is 200ms or less.",
-                    },
-                  ];
-
-                  return cwvMetrics.map((metric) => {
-                    const vital = coreWebVitals[metric.key] || (metric.fallbackKey ? coreWebVitals[metric.fallbackKey] : null);
-                    const title = vital ? (coreWebVitals[metric.key] ? metric.title : metric.fallbackTitle || metric.title) : metric.title;
-                    const explanation = vital ? (coreWebVitals[metric.key] ? metric.explanation : metric.fallbackExplanation || metric.explanation) : metric.explanation;
-                    const score = vital?.score ?? 0;
-                    const statusLabel = score >= 0.9 ? "Good" : score >= 0.5 ? "Needs Improvement" : "Poor";
-                    const statusColor = score >= 0.9 ? "bg-score-excellent" : score >= 0.5 ? "bg-score-average" : "bg-score-poor";
-                    const statusTextColor = score >= 0.9 ? "text-score-excellent" : score >= 0.5 ? "text-score-average" : "text-score-poor";
-                    const statusIcon = score >= 0.9
-                      ? <CheckCircle className="h-5 w-5 text-score-excellent" />
-                      : score >= 0.5
-                        ? <AlertTriangle className="h-5 w-5 text-score-average" />
-                        : <XCircle className="h-5 w-5 text-score-poor" />;
-
-                    return (
-                      <Card key={metric.key} className="relative overflow-hidden">
-                        <div className={`absolute top-0 left-0 right-0 h-1 ${statusColor}`} />
-                        <CardContent className="p-6 space-y-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-display text-sm font-semibold leading-tight">{title}</h3>
-                            {statusIcon}
-                          </div>
-                          <div className="flex items-baseline gap-3">
-                            <span className={`font-display text-3xl font-bold ${statusTextColor}`}>
-                              {vital?.displayValue || "N/A"}
-                            </span>
-                            <Badge className={`${statusColor} text-white border-0 text-xs`}>
-                              {statusLabel}
-                            </Badge>
-                          </div>
-                          <Progress value={score * 100} className="h-1.5" />
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            {explanation}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    );
-                  });
-                })()}
               </div>
+            </div>
 
-              {/* Additional Metrics */}
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {Object.entries(coreWebVitals)
-                  .filter(([key]) => !["lcp", "cls", "inp"].includes(key))
-                  .map(([key, vital]: [string, any]) => (
-                    <Card key={key}>
-                      <CardContent className="p-5">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-sm font-medium">{vital.title}</p>
-                          {getCwvIcon(vital.score)}
-                        </div>
-                        <p className={`font-display text-2xl font-bold ${getScoreColor(vital.score * 100)}`}>
-                          {vital.displayValue}
-                        </p>
-                        <Progress value={vital.score * 100} className="h-1.5 mt-2" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">Time to Interactive</p>
-                      <Clock className="h-4 w-4 text-muted-foreground" />
+            {/* Metrics Grid */}
+            {metricsGrid.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {metricsGrid.map(({ key, label, vital }) => (
+                  <div key={key} className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
+                    <MetricDot score={vital.score} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground truncate">{label}</p>
+                      <p className={`font-display text-lg font-bold ${getScoreTextClass(vital.score)}`}>
+                        {vital.displayValue}
+                      </p>
                     </div>
-                    <p className="font-display text-2xl font-bold text-primary">{loadTime.displayValue || "N/A"}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {loadTime.value ? `${(loadTime.value / 1000).toFixed(1)}s until interactive` : ""}
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Charts */}
-          <TabsContent value="charts">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-display text-base">Mobile vs Desktop</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="h-72 w-full">
-                    <BarChart data={barData}>
-                      <XAxis dataKey="category" tick={{ fontSize: 12 }} />
-                      <YAxis domain={[0, 100]} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="mobile" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="desktop" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-display text-base">Mobile Score Radar</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ChartContainer config={chartConfig} className="h-72 w-full">
-                    <RadarChart data={radarData}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="category" tick={{ fontSize: 11 }} />
-                      <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </RadarChart>
-                  </ChartContainer>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Website Issues Detection */}
-          <TabsContent value="issues-detected">
-            <Card>
-              <CardHeader>
-                <CardTitle className="font-display text-base flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-score-average" /> Detected Website Issues
-                </CardTitle>
-                <CardDescription>
-                  Common issues detected from PageSpeed Insights analysis, sorted by severity.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {detectedIssues.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="h-10 w-10 text-score-excellent mx-auto mb-3" />
-                    <p className="text-sm font-medium">No major issues detected!</p>
-                    <p className="text-xs text-muted-foreground mt-1">Your website passes all common checks. Great job!</p>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {[...detectedIssues]
-                      .sort((a, b) => {
-                        const order: Record<string, number> = { critical: 0, high: 1, medium: 2 };
-                        return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
-                      })
-                      .map((issue: any, i: number) => {
-                        const severityConfig: Record<string, { label: string; color: string; icon: React.ReactNode; border: string }> = {
-                          critical: {
-                            label: "Critical",
-                            color: "bg-score-poor/10 text-score-poor border-score-poor/30",
-                            icon: <XCircle className="h-5 w-5 text-score-poor" />,
-                            border: "border-l-score-poor",
-                          },
-                          high: {
-                            label: "High",
-                            color: "bg-score-poor/10 text-score-poor border-score-poor/20",
-                            icon: <AlertTriangle className="h-5 w-5 text-score-poor" />,
-                            border: "border-l-score-poor",
-                          },
-                          medium: {
-                            label: "Medium",
-                            color: "bg-score-average/10 text-score-average border-score-average/20",
-                            icon: <AlertTriangle className="h-5 w-5 text-score-average" />,
-                            border: "border-l-score-average",
-                          },
-                        };
-                        const config = severityConfig[issue.severity] || severityConfig.medium;
-
-                        return (
-                          <div
-                            key={i}
-                            className={`p-4 rounded-lg border border-border border-l-4 ${config.border} space-y-3`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-3">
-                                {config.icon}
-                                <div>
-                                  <p className="text-sm font-semibold">{issue.name}</p>
-                                  {issue.displayValue && (
-                                    <p className="text-xs text-muted-foreground mt-0.5">{issue.displayValue}</p>
-                                  )}
-                                </div>
-                              </div>
-                              <Badge variant="outline" className={`text-xs shrink-0 ${config.color}`}>
-                                {config.label}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground pl-8">{issue.description}</p>
-                            <div className="pl-8 flex items-start gap-2 p-3 rounded-md bg-muted/50">
-                              <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                              <div>
-                                <p className="text-xs font-medium text-primary mb-0.5">Suggested Fix</p>
-                                <p className="text-xs text-muted-foreground">{issue.fix}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                ))}
+                {loadTime.displayValue && (
+                  <div className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card">
+                    <span className="inline-block h-3 w-3 rounded-full bg-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground">Time to Interactive</p>
+                      <p className="font-display text-lg font-bold text-primary">{loadTime.displayValue}</p>
+                    </div>
                   </div>
                 )}
-                <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{detectedIssues.length} issue{detectedIssues.length !== 1 ? "s" : ""} detected</span>
-                  <span>
-                    {detectedIssues.filter((i: any) => i.severity === "critical").length} critical ·{" "}
-                    {detectedIssues.filter((i: any) => i.severity === "high").length} high ·{" "}
-                    {detectedIssues.filter((i: any) => i.severity === "medium").length} medium
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* History Comparison */}
-          <TabsContent value="history">
-            {historyScans.length <= 1 ? (
-              <Card className="bg-muted/50 border-dashed">
-                <CardContent className="p-8 text-center">
-                  <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    No previous scans found for this URL. Scan again later to see how your metrics change over time.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {/* Score Trend Line Chart */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-display text-base flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" /> Score Trends Over Time
-                    </CardTitle>
-                    <CardDescription>
-                      {historyScans.length} scans of {report.url}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={{
-                      performance: { label: "Performance", color: "hsl(var(--primary))" },
-                      seo: { label: "SEO", color: "hsl(var(--accent))" },
-                      accessibility: { label: "Accessibility", color: "hsl(var(--score-good))" },
-                      overall: { label: "Overall", color: "hsl(var(--foreground))" },
-                    }} className="h-72 w-full">
-                      <LineChart data={historyChartData}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
-                        <Tooltip
-                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                          labelStyle={{ fontWeight: 600 }}
-                          formatter={(value: number, name: string) => [`${value}`, name.charAt(0).toUpperCase() + name.slice(1)]}
-                          labelFormatter={(_label: string, payload: any[]) => payload?.[0]?.payload?.fullDate || _label}
-                        />
-                        <Legend />
-                        <Line type="monotone" dataKey="overall" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 4 }} name="Overall" />
-                        <Line type="monotone" dataKey="performance" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Performance" />
-                        <Line type="monotone" dataKey="seo" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} name="SEO" />
-                        <Line type="monotone" dataKey="accessibility" stroke="hsl(var(--score-good))" strokeWidth={2} dot={{ r: 3 }} name="Accessibility" />
-                      </LineChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-
-                {/* CWV Trend Charts */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="font-display text-base">LCP Over Time</CardTitle>
-                      <CardDescription>Largest Contentful Paint (lower is better)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ChartContainer config={{ lcp: { label: "LCP (ms)", color: "hsl(var(--primary))" } }} className="h-56 w-full">
-                        <LineChart data={historyChartData.filter(d => d.lcp != null)}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                          <Line type="monotone" dataKey="lcp" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} name="LCP (ms)" />
-                        </LineChart>
-                      </ChartContainer>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="font-display text-base">CLS Over Time</CardTitle>
-                      <CardDescription>Cumulative Layout Shift (lower is better)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <ChartContainer config={{ cls: { label: "CLS", color: "hsl(var(--score-average))" } }} className="h-56 w-full">
-                        <LineChart data={historyChartData.filter(d => d.cls != null)}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                          <Line type="monotone" dataKey="cls" stroke="hsl(var(--score-average))" strokeWidth={2} dot={{ r: 4 }} name="CLS" />
-                        </LineChart>
-                      </ChartContainer>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* History Table */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="font-display text-base">Scan History</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border text-left">
-                            <th className="pb-3 font-medium text-muted-foreground">Date</th>
-                            <th className="pb-3 font-medium text-muted-foreground text-center">Overall</th>
-                            <th className="pb-3 font-medium text-muted-foreground text-center">Perf</th>
-                            <th className="pb-3 font-medium text-muted-foreground text-center">SEO</th>
-                            <th className="pb-3 font-medium text-muted-foreground text-center">LCP</th>
-                            <th className="pb-3 font-medium text-muted-foreground text-center">CLS</th>
-                            <th className="pb-3 font-medium text-muted-foreground text-center">TBT</th>
-                            <th className="pb-3"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {historyScans.slice().reverse().map((scan, i) => {
-                            const cwv = scan.results?.coreWebVitals || {};
-                            const isCurrent = scan.id === id;
-                            return (
-                              <tr key={scan.id} className={`border-b border-border/50 ${isCurrent ? "bg-primary/5" : ""}`}>
-                                <td className="py-3">
-                                  <span className="font-medium">{new Date(scan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-                                  {isCurrent && <Badge variant="secondary" className="ml-2 text-xs">Current</Badge>}
-                                </td>
-                                <td className="py-3 text-center">
-                                  <span className={`font-display font-bold ${getScoreColor(scan.overall_score || 0)}`}>{scan.overall_score || 0}</span>
-                                </td>
-                                <td className="py-3 text-center">
-                                  <span className={`font-display font-bold ${getScoreColor(scan.results?.mobile?.performance || 0)}`}>{scan.results?.mobile?.performance || 0}</span>
-                                </td>
-                                <td className="py-3 text-center">
-                                  <span className={`font-display font-bold ${getScoreColor(scan.results?.mobile?.seo || 0)}`}>{scan.results?.mobile?.seo || 0}</span>
-                                </td>
-                                <td className="py-3 text-center">
-                                  <span className={`text-xs ${cwv.lcp?.score >= 0.9 ? "text-score-excellent" : cwv.lcp?.score >= 0.5 ? "text-score-average" : "text-score-poor"}`}>
-                                    {cwv.lcp?.displayValue || "—"}
-                                  </span>
-                                </td>
-                                <td className="py-3 text-center">
-                                  <span className={`text-xs ${cwv.cls?.score >= 0.9 ? "text-score-excellent" : cwv.cls?.score >= 0.5 ? "text-score-average" : "text-score-poor"}`}>
-                                    {cwv.cls?.displayValue || "—"}
-                                  </span>
-                                </td>
-                                <td className="py-3 text-center">
-                                  <span className={`text-xs ${cwv.tbt?.score >= 0.9 ? "text-score-excellent" : cwv.tbt?.score >= 0.5 ? "text-score-average" : "text-score-poor"}`}>
-                                    {cwv.tbt?.displayValue || "—"}
-                                  </span>
-                                </td>
-                                <td className="py-3 text-right">
-                                  {!isCurrent && (
-                                    <Link to={`/report/${scan.id}`}>
-                                      <Button variant="ghost" size="sm" className="text-xs">View</Button>
-                                    </Link>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
-          </TabsContent>
 
-          {/* Issues & Opportunities */}
-          <TabsContent value="issues">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-display text-base flex items-center gap-2">
-                    <Lightbulb className="h-4 w-4 text-score-average" /> Opportunities
-                  </CardTitle>
-                  <CardDescription>Suggestions to improve page load speed</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {opportunities.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">No major opportunities — great job!</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {opportunities.map((opp: any, i: number) => (
-                        <div key={i} className="flex gap-3 p-3 rounded-lg border border-border">
-                          <TrendingUp className="h-4 w-4 text-score-average shrink-0 mt-0.5" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium">{opp.title}</p>
-                            {opp.savings && (
-                              <Badge variant="secondary" className="mt-1 text-xs">Potential savings: {opp.savings}</Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+            {/* Filmstrip placeholder */}
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
+              <p className="text-xs font-medium text-muted-foreground mb-3">Page Loading Timeline</p>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((sec) => (
+                  <div key={sec} className="shrink-0 text-center">
+                    <div className="w-16 h-10 rounded border border-border bg-background flex items-center justify-center">
+                      <Globe className="h-4 w-4 text-muted-foreground/30" />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-display text-base flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-primary" /> Diagnostics
-                  </CardTitle>
-                  <CardDescription>Additional information about your page</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {diagnostics.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">No diagnostics to show</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {diagnostics.map((diag: any, i: number) => (
-                        <div key={i} className="flex gap-3 p-3 rounded-lg border border-border">
-                          <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium">{diag.title}</p>
-                            {diag.displayValue && (
-                              <p className="text-xs text-muted-foreground mt-0.5">{diag.displayValue}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <p className="text-[10px] text-muted-foreground mt-1">{sec}s</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </TabsContent>
+          </CardContent>
+        </Card>
 
-          {/* AI Recommendations */}
-          <TabsContent value="ai">
-            {aiSuggestions ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="font-display text-base flex items-center gap-2">
-                    <Lightbulb className="h-5 w-5 text-primary" /> AI-Generated Optimization Recommendations
-                  </CardTitle>
-                  <CardDescription>Actionable recommendations powered by AI analysis of your scan results</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                  <SuggestionSection
-                    title="Performance Fixes"
-                    icon={<Zap className="h-4 w-4 text-score-average" />}
-                    suggestions={aiSuggestions.performance || []}
-                  />
-                  <SuggestionSection
-                    title="SEO Improvements"
-                    icon={<Search className="h-4 w-4 text-primary" />}
-                    suggestions={aiSuggestions.seo || []}
-                  />
-                  <SuggestionSection
-                    title="UX & Accessibility Improvements"
-                    icon={<Eye className="h-4 w-4 text-score-excellent" />}
-                    suggestions={aiSuggestions.ux || []}
-                  />
-                </CardContent>
-              </Card>
+        {/* Insights / Opportunities Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-5 w-5 text-score-average" />
+              <CardTitle className="font-display text-lg">Opportunities</CardTitle>
+            </div>
+            <CardDescription>These suggestions can help your page load faster.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {opportunities.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle className="h-8 w-8 text-score-excellent mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No major opportunities — great job!</p>
+              </div>
             ) : (
-              <Card className="bg-muted/50 border-dashed">
-                <CardContent className="p-8 text-center">
-                  <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">AI recommendations were not available for this scan.</p>
-                </CardContent>
-              </Card>
+              <Accordion type="multiple" className="w-full">
+                {opportunities.map((opp: any, i: number) => (
+                  <AccordionItem key={i} value={`opp-${i}`}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 text-left">
+                        <AlertTriangle className="h-4 w-4 text-score-average shrink-0" />
+                        <span className="text-sm font-medium">{opp.title}</span>
+                        {opp.savings && (
+                          <Badge variant="secondary" className="text-xs ml-auto mr-2 shrink-0">{opp.savings}</Badge>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground pl-7">{opp.description || "Optimize this resource to improve loading performance."}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
             )}
-          </TabsContent>
-        </Tabs>
+          </CardContent>
+        </Card>
+
+        {/* Diagnostics Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <CardTitle className="font-display text-lg">Diagnostics</CardTitle>
+            </div>
+            <CardDescription>More information about the performance of your application.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {diagnostics.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No diagnostics to show.</p>
+            ) : (
+              <Accordion type="multiple" className="w-full">
+                {diagnostics.map((diag: any, i: number) => (
+                  <AccordionItem key={i} value={`diag-${i}`}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 text-left">
+                        <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium">{diag.title}</span>
+                        {diag.displayValue && (
+                          <span className="text-xs text-muted-foreground ml-auto mr-2 shrink-0">{diag.displayValue}</span>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground pl-7">{diag.description || "Review this diagnostic for potential improvements."}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Accessibility Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="font-display text-lg">Accessibility</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+              <ScoreGauge score={a11yScore} size={120} strokeWidth={8} />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  These checks highlight opportunities to improve the accessibility of your web app.
+                </p>
+                <Badge className={`${getScoreBg(a11yScore)} text-white border-0`}>{getScoreLabel(a11yScore)}</Badge>
+              </div>
+            </div>
+            <Accordion type="multiple" className="w-full">
+              {[
+                { title: "Names and Labels", desc: "Ensure interactive elements have accessible names and labels for screen readers." },
+                { title: "ARIA", desc: "Verify that ARIA attributes are used correctly to enhance accessibility." },
+                { title: "Contrast", desc: "Ensure text and interactive elements have sufficient color contrast." },
+              ].map((cat, i) => {
+                const relevantIssues = a11yIssues.filter((issue: any) =>
+                  issue.name?.toLowerCase().includes(cat.title.toLowerCase().split(" ")[0])
+                );
+                return (
+                  <AccordionItem key={i} value={`a11y-${i}`}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 text-left">
+                        {relevantIssues.length > 0 ? (
+                          <AlertTriangle className="h-4 w-4 text-score-average shrink-0" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 text-score-excellent shrink-0" />
+                        )}
+                        <span className="text-sm font-medium">{cat.title}</span>
+                        {relevantIssues.length > 0 && (
+                          <Badge variant="secondary" className="text-xs ml-auto mr-2">{relevantIssues.length} issues</Badge>
+                        )}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground pl-7 mb-2">{cat.desc}</p>
+                      {relevantIssues.length > 0 && (
+                        <div className="pl-7 space-y-2">
+                          {relevantIssues.map((issue: any, j: number) => (
+                            <div key={j} className="text-sm p-2 rounded bg-muted/50">
+                              <p className="font-medium">{issue.name}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{issue.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </CardContent>
+        </Card>
+
+        {/* Best Practices Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="font-display text-lg">Best Practices</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+              <ScoreGauge score={bpScore} size={120} strokeWidth={8} />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  These checks ensure your page follows modern web development best practices.
+                </p>
+                <Badge className={`${getScoreBg(bpScore)} text-white border-0`}>{getScoreLabel(bpScore)}</Badge>
+              </div>
+            </div>
+            <Accordion type="multiple" className="w-full">
+              {[
+                { title: "CSP Protection", desc: "Content Security Policy helps prevent XSS attacks." },
+                { title: "HTTPS", desc: "All resources should be served over HTTPS." },
+                { title: "Browser Errors", desc: "Check for JavaScript errors logged to the console." },
+              ].map((check, i) => {
+                const hasIssue = securityIssues.some((issue: any) =>
+                  issue.name?.toLowerCase().includes(check.title.toLowerCase().split(" ")[0])
+                );
+                return (
+                  <AccordionItem key={i} value={`bp-${i}`}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 text-left">
+                        {hasIssue ? (
+                          <XCircle className="h-4 w-4 text-score-poor shrink-0" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 text-score-excellent shrink-0" />
+                        )}
+                        <span className="text-sm font-medium">{check.title}</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground pl-7">{check.desc}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </CardContent>
+        </Card>
+
+        {/* SEO Section */}
+        <Card>
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <Search className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="font-display text-lg">SEO</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+              <ScoreGauge score={seoScore} size={120} strokeWidth={8} />
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  These checks ensure that your page is following basic search engine optimization advice.
+                </p>
+                <Badge className={`${getScoreBg(seoScore)} text-white border-0`}>{getScoreLabel(seoScore)}</Badge>
+              </div>
+            </div>
+            <Accordion type="multiple" className="w-full">
+              {[
+                { title: "Meta Tags", desc: "Title and meta description are properly configured for search engines." },
+                { title: "Crawlability", desc: "Page can be discovered and indexed by search engine crawlers." },
+                { title: "Structured Data", desc: "Structured data (Schema.org) helps search engines understand your content." },
+                { title: "Mobile Friendliness", desc: "Page is optimized for mobile devices with proper viewport configuration." },
+              ].map((check, i) => {
+                const hasIssue = seoIssues.some((issue: any) =>
+                  issue.name?.toLowerCase().includes(check.title.toLowerCase().split(" ")[0])
+                );
+                return (
+                  <AccordionItem key={i} value={`seo-${i}`}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 text-left">
+                        {hasIssue ? (
+                          <AlertTriangle className="h-4 w-4 text-score-average shrink-0" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 text-score-excellent shrink-0" />
+                        )}
+                        <span className="text-sm font-medium">{check.title}</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground pl-7">{check.desc}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </CardContent>
+        </Card>
+
+        {/* AI Recommendations */}
+        {aiSuggestions && (
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-primary" />
+                <CardTitle className="font-display text-lg">AI Recommendations</CardTitle>
+              </div>
+              <CardDescription>Actionable recommendations powered by AI analysis of your scan results.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {[
+                  { key: "performance", title: "Performance Fixes", icon: <Zap className="h-4 w-4 text-score-average" />, items: aiSuggestions.performance || [] },
+                  { key: "seo", title: "SEO Improvements", icon: <Search className="h-4 w-4 text-primary" />, items: aiSuggestions.seo || [] },
+                  { key: "ux", title: "UX & Accessibility", icon: <Eye className="h-4 w-4 text-score-excellent" />, items: aiSuggestions.ux || [] },
+                ].map((section) => (
+                  section.items.map((s: any, i: number) => (
+                    <AccordionItem key={`${section.key}-${i}`} value={`ai-${section.key}-${i}`}>
+                      <AccordionTrigger className="hover:no-underline py-3">
+                        <div className="flex items-center gap-3 text-left">
+                          {section.icon}
+                          <span className="text-sm font-medium">{s.title}</span>
+                          <Badge variant="outline" className="text-xs ml-auto mr-2 shrink-0">
+                            {s.impact} impact
+                          </Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="pl-7 space-y-2">
+                          {s.explanation && <p className="text-sm text-muted-foreground">{s.explanation}</p>}
+                          {s.description && !s.explanation && <p className="text-sm text-muted-foreground">{s.description}</p>}
+                          {s.howToFix && (
+                            <div className="p-3 rounded-md bg-muted/50 flex items-start gap-2">
+                              <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                              <p className="text-sm text-muted-foreground">{s.howToFix}</p>
+                            </div>
+                          )}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))
+                ))}
+              </Accordion>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* History */}
+        {historyScans.length > 1 && (
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <CardTitle className="font-display text-lg">Score History</CardTitle>
+              </div>
+              <CardDescription>{historyScans.length} scans of {report.url}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={chartConfig} className="h-72 w-full">
+                <LineChart data={historyChartData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    labelFormatter={(_label: string, payload: any[]) => payload?.[0]?.payload?.fullDate || _label}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="overall" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 4 }} name="Overall" />
+                  <Line type="monotone" dataKey="performance" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Performance" />
+                  <Line type="monotone" dataKey="seo" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} name="SEO" />
+                  <Line type="monotone" dataKey="accessibility" stroke="hsl(var(--score-good))" strokeWidth={2} dot={{ r: 3 }} name="Accessibility" />
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );
