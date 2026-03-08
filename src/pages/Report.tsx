@@ -204,6 +204,7 @@ const Report = () => {
   const opportunities = results.opportunities || [];
   const diagnostics = results.diagnostics || [];
   const aiSuggestions = results.aiSuggestions || null;
+  const detectedIssues: any[] = results.detectedIssues || [];
 
   const barData = [
     { category: "Performance", mobile: mobile.performance || 0, desktop: desktop.performance || 0 },
@@ -557,8 +558,9 @@ const Report = () => {
           <TabsList>
             <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
             <TabsTrigger value="charts">Charts</TabsTrigger>
+            <TabsTrigger value="issues-detected">Website Issues</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="issues">Issues & Opportunities</TabsTrigger>
+            <TabsTrigger value="issues">Opportunities</TabsTrigger>
             <TabsTrigger value="ai">AI Recommendations</TabsTrigger>
           </TabsList>
 
@@ -705,6 +707,98 @@ const Report = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Website Issues Detection */}
+          <TabsContent value="issues-detected">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-display text-base flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-score-average" /> Detected Website Issues
+                </CardTitle>
+                <CardDescription>
+                  Common issues detected from PageSpeed Insights analysis, sorted by severity.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {detectedIssues.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="h-10 w-10 text-score-excellent mx-auto mb-3" />
+                    <p className="text-sm font-medium">No major issues detected!</p>
+                    <p className="text-xs text-muted-foreground mt-1">Your website passes all common checks. Great job!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {[...detectedIssues]
+                      .sort((a, b) => {
+                        const order: Record<string, number> = { critical: 0, high: 1, medium: 2 };
+                        return (order[a.severity] ?? 3) - (order[b.severity] ?? 3);
+                      })
+                      .map((issue: any, i: number) => {
+                        const severityConfig: Record<string, { label: string; color: string; icon: React.ReactNode; border: string }> = {
+                          critical: {
+                            label: "Critical",
+                            color: "bg-score-poor/10 text-score-poor border-score-poor/30",
+                            icon: <XCircle className="h-5 w-5 text-score-poor" />,
+                            border: "border-l-score-poor",
+                          },
+                          high: {
+                            label: "High",
+                            color: "bg-score-poor/10 text-score-poor border-score-poor/20",
+                            icon: <AlertTriangle className="h-5 w-5 text-score-poor" />,
+                            border: "border-l-score-poor",
+                          },
+                          medium: {
+                            label: "Medium",
+                            color: "bg-score-average/10 text-score-average border-score-average/20",
+                            icon: <AlertTriangle className="h-5 w-5 text-score-average" />,
+                            border: "border-l-score-average",
+                          },
+                        };
+                        const config = severityConfig[issue.severity] || severityConfig.medium;
+
+                        return (
+                          <div
+                            key={i}
+                            className={`p-4 rounded-lg border border-border border-l-4 ${config.border} space-y-3`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3">
+                                {config.icon}
+                                <div>
+                                  <p className="text-sm font-semibold">{issue.name}</p>
+                                  {issue.displayValue && (
+                                    <p className="text-xs text-muted-foreground mt-0.5">{issue.displayValue}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <Badge variant="outline" className={`text-xs shrink-0 ${config.color}`}>
+                                {config.label}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground pl-8">{issue.description}</p>
+                            <div className="pl-8 flex items-start gap-2 p-3 rounded-md bg-muted/50">
+                              <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-medium text-primary mb-0.5">Suggested Fix</p>
+                                <p className="text-xs text-muted-foreground">{issue.fix}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+                <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{detectedIssues.length} issue{detectedIssues.length !== 1 ? "s" : ""} detected</span>
+                  <span>
+                    {detectedIssues.filter((i: any) => i.severity === "critical").length} critical ·{" "}
+                    {detectedIssues.filter((i: any) => i.severity === "high").length} high ·{" "}
+                    {detectedIssues.filter((i: any) => i.severity === "medium").length} medium
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* History Comparison */}
