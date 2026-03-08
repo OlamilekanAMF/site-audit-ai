@@ -191,17 +191,51 @@ const Report = () => {
       const addPage = () => { doc.addPage(); y = 20; };
       const checkPage = (need: number) => { if (y + need > 270) addPage(); };
 
-      doc.setFillColor(17, 24, 39);
-      doc.rect(0, 0, W, 44, "F");
+      // Blue gradient header
+      const gSteps = 20;
+      const hH = 52;
+      for (let i = 0; i < gSteps; i++) {
+        const t = i / gSteps;
+        const r = Math.round(30 + t * (59 - 30));
+        const g = Math.round(64 + t * (130 - 64));
+        const b = Math.round(175 + t * (246 - 175));
+        doc.setFillColor(r, g, b);
+        doc.rect(0, (hH / gSteps) * i, W, hH / gSteps + 0.5, "F");
+      }
+
+      // Logo: SiteDoctor AI text branding
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
+      doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.text("Website Audit Report", pageMargin, 20);
+      doc.text("SiteDoctor AI", pageMargin, 14);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(219, 234, 254);
+      doc.text("Website Performance & SEO Audit Platform", pageMargin, 19);
+
+      // Decorative line separator
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.3);
+      doc.line(pageMargin, 22, pageMargin + 50, 22);
+
+      // Report title
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.text("Website Audit Report", pageMargin, 32);
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(report.url, pageMargin, 28);
-      doc.text(`Scan Date: ${new Date(report.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, pageMargin, 35);
-      y = 54;
+      doc.setTextColor(219, 234, 254);
+      doc.text(report.url, pageMargin, 39);
+      doc.text(`Scan Date: ${new Date(report.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, pageMargin, 45);
+
+      // Generated date on right
+      doc.setFontSize(8);
+      doc.setTextColor(191, 219, 254);
+      const genText = `Report #${report.id.slice(0, 8).toUpperCase()}`;
+      doc.text(genText, W - pageMargin - doc.getTextWidth(genText), 14);
+
+      y = 60;
 
       doc.setTextColor(17, 24, 39);
       doc.setFontSize(14);
