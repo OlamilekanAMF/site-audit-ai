@@ -121,13 +121,13 @@ const SuggestionSection = ({
   icon: React.ReactNode;
   suggestions: any[];
 }) => (
-  <div className="space-y-3">
+  <div className="space-y-4">
     <h3 className="font-display text-sm font-semibold flex items-center gap-2">{icon} {title}</h3>
     {!suggestions || suggestions.length === 0 ? (
       <p className="text-sm text-muted-foreground py-2">No suggestions in this category.</p>
     ) : (
       suggestions.map((s: any, i: number) => (
-        <div key={i} className="p-4 rounded-lg border border-border space-y-2">
+        <div key={i} className="p-5 rounded-lg border border-border space-y-3">
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm font-semibold">{s.title}</p>
             <div className="flex gap-2 shrink-0">
@@ -139,7 +139,34 @@ const SuggestionSection = ({
               </Badge>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">{s.description}</p>
+
+          {/* Rich format: explanation, why it matters, how to fix */}
+          {s.explanation ? (
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">What's happening</p>
+                <p className="text-muted-foreground">{s.explanation}</p>
+              </div>
+              {s.whyItMatters && (
+                <div className="pl-3 border-l-2 border-score-average/40">
+                  <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-1">Why it matters</p>
+                  <p className="text-muted-foreground">{s.whyItMatters}</p>
+                </div>
+              )}
+              {s.howToFix && (
+                <div className="p-3 rounded-md bg-muted/50 flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-xs text-primary uppercase tracking-wide mb-1">How to fix</p>
+                    <p className="text-muted-foreground">{s.howToFix}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Fallback for old format */
+            <p className="text-sm text-muted-foreground">{s.description}</p>
+          )}
         </div>
       ))
     )}
