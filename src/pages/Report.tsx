@@ -141,6 +141,8 @@ const Report = () => {
   const diagnostics = results.diagnostics || [];
   const aiSuggestions = results.aiSuggestions || null;
   const detectedIssues: any[] = results.detectedIssues || [];
+  const screenshot: string | null = results.screenshot || null;
+  const filmstrip: { timing: number; data: string }[] = results.filmstrip || [];
 
   // Build sections from data
   const perfScore = activeDevice.performance || 0;
