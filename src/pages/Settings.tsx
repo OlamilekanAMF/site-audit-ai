@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock } from "lucide-react";
+import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock, Download } from "lucide-react";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -37,6 +37,7 @@ const Settings = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -133,6 +134,31 @@ const Settings = () => {
     setChangingPassword(false);
   };
 
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from("scan_reports")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Export complete", description: `${data?.length || 0} reports exported.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+    setExporting(false);
+  };
   const initials = fullName
     ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.charAt(0).toUpperCase() || "?";
@@ -270,7 +296,37 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Danger Zone */}
+        {/* Export Data */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Download className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="font-display text-base">Export Data</CardTitle>
+            </div>
+            <CardDescription>Download all your scan reports as a JSON file.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Export All Reports</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Download a JSON file containing all your scan data and results.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 shrink-0"
+                onClick={handleExportData}
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                Export JSON
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-destructive/30">
           <CardHeader>
             <div className="flex items-center gap-2">
