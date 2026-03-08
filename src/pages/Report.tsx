@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import jsPDF from "jspdf";
@@ -41,6 +41,11 @@ import {
   Bar,
   XAxis,
   YAxis,
+  LineChart,
+  Line,
+  CartesianGrid,
+  Legend,
+  Tooltip,
 } from "recharts";
 
 const chartConfig = {
@@ -146,6 +151,7 @@ const Report = () => {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [historyScans, setHistoryScans] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -154,11 +160,41 @@ const Report = () => {
         .select("*")
         .eq("id", id)
         .single();
-      if (data) setReport(data);
+      if (data) {
+        setReport(data);
+        // Fetch all completed scans for the same URL
+        const { data: history } = await supabase
+          .from("scan_reports")
+          .select("id, created_at, overall_score, results, url")
+          .eq("url", data.url)
+          .eq("user_id", data.user_id)
+          .eq("status", "completed")
+          .order("created_at", { ascending: true });
+        if (history) setHistoryScans(history);
+      }
       setLoading(false);
     };
     fetchReport();
   }, [id]);
+
+  const historyChartData = useMemo(() => {
+    return historyScans.map((scan) => {
+      const cwv = scan.results?.coreWebVitals || {};
+      return {
+        date: new Date(scan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        fullDate: new Date(scan.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        id: scan.id,
+        overall: scan.overall_score || 0,
+        lcp: cwv.lcp?.value ? Math.round(cwv.lcp.value) : null,
+        cls: cwv.cls?.value != null ? Number(cwv.cls.value.toFixed(3)) : null,
+        tbt: cwv.tbt?.value ? Math.round(cwv.tbt.value) : null,
+        fcp: cwv.fcp?.value ? Math.round(cwv.fcp.value) : null,
+        performance: scan.results?.mobile?.performance || 0,
+        seo: scan.results?.mobile?.seo || 0,
+        accessibility: scan.results?.mobile?.accessibility || 0,
+      };
+    });
+  }, [historyScans]);
 
   const results = report?.results || {};
   const mobile = results.mobile || {};
@@ -521,6 +557,7 @@ const Report = () => {
           <TabsList>
             <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
             <TabsTrigger value="charts">Charts</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="issues">Issues & Opportunities</TabsTrigger>
             <TabsTrigger value="ai">AI Recommendations</TabsTrigger>
           </TabsList>
@@ -668,6 +705,168 @@ const Report = () => {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* History Comparison */}
+          <TabsContent value="history">
+            {historyScans.length <= 1 ? (
+              <Card className="bg-muted/50 border-dashed">
+                <CardContent className="p-8 text-center">
+                  <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    No previous scans found for this URL. Scan again later to see how your metrics change over time.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {/* Score Trend Line Chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="font-display text-base flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-primary" /> Score Trends Over Time
+                    </CardTitle>
+                    <CardDescription>
+                      {historyScans.length} scans of {report.url}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ChartContainer config={{
+                      performance: { label: "Performance", color: "hsl(var(--primary))" },
+                      seo: { label: "SEO", color: "hsl(var(--accent))" },
+                      accessibility: { label: "Accessibility", color: "hsl(var(--score-good))" },
+                      overall: { label: "Overall", color: "hsl(var(--foreground))" },
+                    }} className="h-72 w-full">
+                      <LineChart data={historyChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+                        <Tooltip
+                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                          labelStyle={{ fontWeight: 600 }}
+                          formatter={(value: number, name: string) => [`${value}`, name.charAt(0).toUpperCase() + name.slice(1)]}
+                          labelFormatter={(_label: string, payload: any[]) => payload?.[0]?.payload?.fullDate || _label}
+                        />
+                        <Legend />
+                        <Line type="monotone" dataKey="overall" stroke="hsl(var(--foreground))" strokeWidth={2} dot={{ r: 4 }} name="Overall" />
+                        <Line type="monotone" dataKey="performance" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} name="Performance" />
+                        <Line type="monotone" dataKey="seo" stroke="hsl(var(--accent))" strokeWidth={2} dot={{ r: 3 }} name="SEO" />
+                        <Line type="monotone" dataKey="accessibility" stroke="hsl(var(--score-good))" strokeWidth={2} dot={{ r: 3 }} name="Accessibility" />
+                      </LineChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
+
+                {/* CWV Trend Charts */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="font-display text-base">LCP Over Time</CardTitle>
+                      <CardDescription>Largest Contentful Paint (lower is better)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={{ lcp: { label: "LCP (ms)", color: "hsl(var(--primary))" } }} className="h-56 w-full">
+                        <LineChart data={historyChartData.filter(d => d.lcp != null)}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                          <Line type="monotone" dataKey="lcp" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} name="LCP (ms)" />
+                        </LineChart>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="font-display text-base">CLS Over Time</CardTitle>
+                      <CardDescription>Cumulative Layout Shift (lower is better)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={{ cls: { label: "CLS", color: "hsl(var(--score-average))" } }} className="h-56 w-full">
+                        <LineChart data={historyChartData.filter(d => d.cls != null)}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} />
+                          <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                          <Line type="monotone" dataKey="cls" stroke="hsl(var(--score-average))" strokeWidth={2} dot={{ r: 4 }} name="CLS" />
+                        </LineChart>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* History Table */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="font-display text-base">Scan History</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-left">
+                            <th className="pb-3 font-medium text-muted-foreground">Date</th>
+                            <th className="pb-3 font-medium text-muted-foreground text-center">Overall</th>
+                            <th className="pb-3 font-medium text-muted-foreground text-center">Perf</th>
+                            <th className="pb-3 font-medium text-muted-foreground text-center">SEO</th>
+                            <th className="pb-3 font-medium text-muted-foreground text-center">LCP</th>
+                            <th className="pb-3 font-medium text-muted-foreground text-center">CLS</th>
+                            <th className="pb-3 font-medium text-muted-foreground text-center">TBT</th>
+                            <th className="pb-3"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {historyScans.slice().reverse().map((scan, i) => {
+                            const cwv = scan.results?.coreWebVitals || {};
+                            const isCurrent = scan.id === id;
+                            return (
+                              <tr key={scan.id} className={`border-b border-border/50 ${isCurrent ? "bg-primary/5" : ""}`}>
+                                <td className="py-3">
+                                  <span className="font-medium">{new Date(scan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                                  {isCurrent && <Badge variant="secondary" className="ml-2 text-xs">Current</Badge>}
+                                </td>
+                                <td className="py-3 text-center">
+                                  <span className={`font-display font-bold ${getScoreColor(scan.overall_score || 0)}`}>{scan.overall_score || 0}</span>
+                                </td>
+                                <td className="py-3 text-center">
+                                  <span className={`font-display font-bold ${getScoreColor(scan.results?.mobile?.performance || 0)}`}>{scan.results?.mobile?.performance || 0}</span>
+                                </td>
+                                <td className="py-3 text-center">
+                                  <span className={`font-display font-bold ${getScoreColor(scan.results?.mobile?.seo || 0)}`}>{scan.results?.mobile?.seo || 0}</span>
+                                </td>
+                                <td className="py-3 text-center">
+                                  <span className={`text-xs ${cwv.lcp?.score >= 0.9 ? "text-score-excellent" : cwv.lcp?.score >= 0.5 ? "text-score-average" : "text-score-poor"}`}>
+                                    {cwv.lcp?.displayValue || "—"}
+                                  </span>
+                                </td>
+                                <td className="py-3 text-center">
+                                  <span className={`text-xs ${cwv.cls?.score >= 0.9 ? "text-score-excellent" : cwv.cls?.score >= 0.5 ? "text-score-average" : "text-score-poor"}`}>
+                                    {cwv.cls?.displayValue || "—"}
+                                  </span>
+                                </td>
+                                <td className="py-3 text-center">
+                                  <span className={`text-xs ${cwv.tbt?.score >= 0.9 ? "text-score-excellent" : cwv.tbt?.score >= 0.5 ? "text-score-average" : "text-score-poor"}`}>
+                                    {cwv.tbt?.displayValue || "—"}
+                                  </span>
+                                </td>
+                                <td className="py-3 text-right">
+                                  {!isCurrent && (
+                                    <Link to={`/report/${scan.id}`}>
+                                      <Button variant="ghost" size="sm" className="text-xs">View</Button>
+                                    </Link>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
 
           {/* Issues & Opportunities */}
