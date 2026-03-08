@@ -47,6 +47,19 @@ type ScanResults = {
   diagnostics: { title: string; description: string; displayValue?: string }[];
 };
 
+type Suggestion = {
+  title: string;
+  description: string;
+  impact: "high" | "medium" | "low";
+  effort: "easy" | "moderate" | "hard";
+};
+
+type AISuggestions = {
+  performance: Suggestion[];
+  seo: Suggestion[];
+  ux: Suggestion[];
+};
+
 const chartConfig = {
   mobile: { label: "Mobile", color: "hsl(var(--primary))" },
   desktop: { label: "Desktop", color: "hsl(var(--accent))" },
