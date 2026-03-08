@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useEffect, useRef, useState } from "react";
 
 interface ScoreGaugeProps {
   score: number;
@@ -6,6 +7,7 @@ interface ScoreGaugeProps {
   strokeWidth?: number;
   label?: string;
   className?: string;
+  animate?: boolean;
 }
 
 const getScoreColorHsl = (score: number) => {
@@ -26,15 +28,70 @@ const getScoreTextClass = (score: number) => {
   return "text-score-poor";
 };
 
-export const ScoreGauge = ({ score, size = 120, strokeWidth = 8, label, className }: ScoreGaugeProps) => {
+// Easing function for smooth deceleration
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+export const ScoreGauge = ({ score, size = 120, strokeWidth = 8, label, className, animate = true }: ScoreGaugeProps) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  const color = getScoreColorHsl(score);
+  const [animatedScore, setAnimatedScore] = useState(animate ? 0 : score);
+  const [hasAnimated, setHasAnimated] = useState(!animate);
+  const ref = useRef<HTMLDivElement>(null);
+  const animFrameRef = useRef<number>();
+
+  // Intersection Observer to trigger animation on visibility
+  useEffect(() => {
+    if (!animate || hasAnimated) return;
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHasAnimated(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [animate, hasAnimated]);
+
+  // Animate score count-up
+  useEffect(() => {
+    if (!hasAnimated || !animate) {
+      setAnimatedScore(score);
+      return;
+    }
+
+    const duration = 1200;
+    const start = performance.now();
+    const from = 0;
+
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeOutCubic(progress);
+      setAnimatedScore(Math.round(from + (score - from) * eased));
+      if (progress < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [hasAnimated, score, animate]);
+
+  const displayScore = animatedScore;
+  const offset = circumference - (displayScore / 100) * circumference;
+  const color = getScoreColorHsl(displayScore);
 
   return (
-    <div className={cn("flex flex-col items-center gap-2", className)}>
-      <div className={cn("rounded-full relative", getScoreBgClass(score))} style={{ width: size, height: size }}>
+    <div ref={ref} className={cn("flex flex-col items-center gap-2", className)}>
+      <div className={cn("rounded-full relative", getScoreBgClass(displayScore))} style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
           <circle
             cx={size / 2}
@@ -43,6 +100,7 @@ export const ScoreGauge = ({ score, size = 120, strokeWidth = 8, label, classNam
             fill="none"
             stroke="hsl(var(--border))"
             strokeWidth={strokeWidth}
+            opacity={0.5}
           />
           <circle
             cx={size / 2}
@@ -54,14 +112,13 @@ export const ScoreGauge = ({ score, size = 120, strokeWidth = 8, label, classNam
             strokeDasharray={circumference}
             strokeDashoffset={offset}
             strokeLinecap="round"
-            className="transition-all duration-700 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn("font-display font-bold", getScoreTextClass(score))}
+          <span className={cn("font-display font-bold tabular-nums", getScoreTextClass(displayScore))}
             style={{ fontSize: size * 0.28 }}
           >
-            {score}
+            {displayScore}
           </span>
         </div>
       </div>
