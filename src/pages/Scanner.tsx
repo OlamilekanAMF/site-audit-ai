@@ -170,26 +170,28 @@ const Scanner = () => {
       setProgress(60);
       setStatusText("Generating AI optimization suggestions...");
 
-      // Fetch AI suggestions in parallel with DB save
-      const [aiResult, insertResult] = await Promise.all([
-        supabase.functions.invoke("ai-suggestions", { body: { scanResults: psiData } }),
-        supabase.from("scan_reports").insert({
-          url: formattedUrl,
-          user_id: user.id,
-          status: "completed",
-          overall_score: psiData.overallScore,
-          results: psiData,
-        }),
-      ]);
+      // Fetch AI suggestions first
+      const aiResult = await supabase.functions.invoke("ai-suggestions", { body: { scanResults: psiData } });
 
-      if (insertResult.error) throw insertResult.error;
+      const aiSuggestionsData = aiResult.data?.success ? aiResult.data.suggestions : null;
+
+      // Save results + AI suggestions together
+      const { error: insertError } = await supabase.from("scan_reports").insert({
+        url: formattedUrl,
+        user_id: user.id,
+        status: "completed",
+        overall_score: psiData.overallScore,
+        results: { ...psiData, aiSuggestions: aiSuggestionsData },
+      });
+
+      if (insertError) throw insertError;
 
       setProgress(100);
       setStatusText("Complete!");
       setResults(psiData);
 
-      if (aiResult.data?.success) {
-        setAiSuggestions(aiResult.data.suggestions);
+      if (aiSuggestionsData) {
+        setAiSuggestions(aiSuggestionsData);
       } else {
         console.warn("AI suggestions failed:", aiResult.data?.error);
       }
