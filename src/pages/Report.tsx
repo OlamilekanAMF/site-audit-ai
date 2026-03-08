@@ -41,6 +41,11 @@ import {
   Bar,
   XAxis,
   YAxis,
+  LineChart,
+  Line,
+  CartesianGrid,
+  Legend,
+  Tooltip,
 } from "recharts";
 
 const chartConfig = {
