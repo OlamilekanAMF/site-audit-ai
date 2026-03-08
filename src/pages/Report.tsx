@@ -216,8 +216,8 @@ const Report = () => {
               </span>
             </div>
           </div>
-          <Button variant="outline" onClick={() => window.print()} className="gap-2">
-            <Download className="h-4 w-4" /> Download PDF
+          <Button variant="outline" onClick={handleDownloadPdf} disabled={generating} className="gap-2">
+            <Download className="h-4 w-4" /> {generating ? "Generating..." : "Download PDF"}
           </Button>
         </div>
 
