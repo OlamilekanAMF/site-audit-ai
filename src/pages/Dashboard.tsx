@@ -149,12 +149,12 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Recent scans */}
+        {/* Reports History */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="font-display">Recent Scans</CardTitle>
-              <CardDescription>Your latest website audits</CardDescription>
+              <CardTitle className="font-display">Reports History</CardTitle>
+              <CardDescription>Your saved website audit reports</CardDescription>
             </div>
             <Link to="/reports">
               <Button variant="ghost" size="sm" className="gap-1">
@@ -170,28 +170,67 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {reports.map((report) => (
-                  <Link key={report.id} to={`/report/${report.id}`} className="block">
-                    <div className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{report.url}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(report.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {report.overall_score !== null ? (
-                          <span className={`font-display text-lg font-bold ${getScoreColor(report.overall_score)}`}>
-                            {report.overall_score}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground capitalize">{report.status}</span>
+                {reports.map((report) => {
+                  const scores = extractScores(report);
+                  return (
+                    <Link key={report.id} to={`/report/${report.id}`} className="block">
+                      <div className="p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-4 w-4 text-primary shrink-0" />
+                              <p className="font-medium truncate">{report.url}</p>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(report.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                              </span>
+                              <Badge variant={report.status === "completed" ? "default" : "secondary"} className={report.status === "completed" ? "bg-score-excellent/10 text-score-excellent border-0 text-xs" : "text-xs"}>
+                                {report.status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {report.overall_score !== null && (
+                              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${getScoreBg(report.overall_score)}`}>
+                                <span className={`font-display text-lg font-bold ${getScoreColor(report.overall_score)}`}>
+                                  {report.overall_score}
+                                </span>
+                              </div>
+                            )}
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                        {(scores.performance !== null || scores.seo !== null) && (
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground flex items-center gap-1"><Zap className="h-3 w-3" /> Performance</span>
+                                <span className={`font-bold ${getScoreColor(scores.performance)}`}>{scores.performance ?? "—"}</span>
+                              </div>
+                              <Progress value={scores.performance ?? 0} className="h-1.5" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground flex items-center gap-1"><Search className="h-3 w-3" /> SEO</span>
+                                <span className={`font-bold ${getScoreColor(scores.seo)}`}>{scores.seo ?? "—"}</span>
+                              </div>
+                              <Progress value={scores.seo ?? 0} className="h-1.5" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground flex items-center gap-1"><Eye className="h-3 w-3" /> Accessibility</span>
+                                <span className={`font-bold ${getScoreColor(scores.accessibility)}`}>{scores.accessibility ?? "—"}</span>
+                              </div>
+                              <Progress value={scores.accessibility ?? 0} className="h-1.5" />
+                            </div>
+                          </div>
                         )}
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>
