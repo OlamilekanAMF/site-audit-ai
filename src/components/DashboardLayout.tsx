@@ -46,11 +46,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <span className="sr-only">Toggle theme</span>
               </Button>
               <span className="text-sm text-muted-foreground">
-                {user?.email}
+                {profile.full_name || user?.email}
               </span>
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
-                {user?.email?.charAt(0).toUpperCase()}
-              </div>
+              <Avatar className="h-8 w-8 border border-border">
+                <AvatarImage src={profile.avatar_url || undefined} alt="Avatar" />
+                <AvatarFallback className="text-sm bg-primary/10 text-primary">
+                  {(profile.full_name?.[0] || user?.email?.[0] || "?").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             </div>
           </header>
           <main className="flex-1 p-6 overflow-auto">{children}</main>
