@@ -372,17 +372,25 @@ const Report = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Score gauge + Screenshot placeholder */}
+            {/* Score gauge + Screenshot */}
             <div className="flex flex-col md:flex-row gap-8 items-center">
               <ScoreGauge score={perfScore} size={160} strokeWidth={10} />
-              <div className="flex-1 w-full rounded-lg border border-border bg-muted/30 flex items-center justify-center min-h-[180px]">
-                <div className="text-center text-muted-foreground">
-                  <Globe className="h-10 w-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">Screenshot preview</p>
-                  <a href={report.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center justify-center gap-1 mt-1">
-                    Visit site <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
+              <div className="flex-1 w-full rounded-lg border border-border bg-muted/30 overflow-hidden min-h-[180px] flex items-center justify-center">
+                {screenshot ? (
+                  <img
+                    src={screenshot}
+                    alt={`Screenshot of ${report.url}`}
+                    className="w-full h-auto max-h-[320px] object-contain"
+                  />
+                ) : (
+                  <div className="text-center text-muted-foreground p-6">
+                    <Globe className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">Screenshot not available</p>
+                    <a href={report.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center justify-center gap-1 mt-1">
+                      Visit site <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -412,18 +420,33 @@ const Report = () => {
               </div>
             )}
 
-            {/* Filmstrip placeholder */}
+            {/* Filmstrip — real data or placeholder */}
             <div className="rounded-lg border border-border bg-muted/20 p-4">
               <p className="text-xs font-medium text-muted-foreground mb-3">Page Loading Timeline</p>
               <div className="flex gap-2 overflow-x-auto pb-2">
-                {[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((sec) => (
-                  <div key={sec} className="shrink-0 text-center">
-                    <div className="w-16 h-10 rounded border border-border bg-background flex items-center justify-center">
-                      <Globe className="h-4 w-4 text-muted-foreground/30" />
+                {filmstrip.length > 0 ? (
+                  filmstrip.map((frame, i) => (
+                    <div key={i} className="shrink-0 text-center">
+                      <div className="w-20 h-14 rounded border border-border bg-background overflow-hidden">
+                        <img
+                          src={frame.data}
+                          alt={`Loading frame at ${(frame.timing / 1000).toFixed(1)}s`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">{(frame.timing / 1000).toFixed(1)}s</p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">{sec}s</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((sec) => (
+                    <div key={sec} className="shrink-0 text-center">
+                      <div className="w-16 h-10 rounded border border-border bg-background flex items-center justify-center">
+                        <Globe className="h-4 w-4 text-muted-foreground/30" />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">{sec}s</p>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </CardContent>
