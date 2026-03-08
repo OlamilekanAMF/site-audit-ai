@@ -1,14 +1,30 @@
+import { useEffect, useState } from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Moon, Sun } from "lucide-react";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { theme, setTheme } = useTheme();
+  const [profile, setProfile] = useState<{ full_name: string | null; avatar_url: string | null }>({ full_name: null, avatar_url: null });
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("full_name, avatar_url")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setProfile(data);
+      });
+  }, [user]);
 
   return (
     <SidebarProvider>
