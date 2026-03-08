@@ -47,11 +47,82 @@ type ScanResults = {
   diagnostics: { title: string; description: string; displayValue?: string }[];
 };
 
+type Suggestion = {
+  title: string;
+  description: string;
+  impact: "high" | "medium" | "low";
+  effort: "easy" | "moderate" | "hard";
+};
+
+type AISuggestions = {
+  performance: Suggestion[];
+  seo: Suggestion[];
+  ux: Suggestion[];
+};
+
 const chartConfig = {
   mobile: { label: "Mobile", color: "hsl(var(--primary))" },
   desktop: { label: "Desktop", color: "hsl(var(--accent))" },
   score: { label: "Score", color: "hsl(var(--primary))" },
 } satisfies ChartConfig;
+
+const impactColors: Record<string, string> = {
+  high: "bg-score-poor/10 text-score-poor border-score-poor/20",
+  medium: "bg-score-average/10 text-score-average border-score-average/20",
+  low: "bg-score-excellent/10 text-score-excellent border-score-excellent/20",
+};
+
+const effortLabels: Record<string, string> = {
+  easy: "🟢 Easy",
+  moderate: "🟡 Moderate",
+  hard: "🔴 Hard",
+};
+
+const SuggestionSection = ({
+  title,
+  icon,
+  description,
+  suggestions,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  suggestions: Suggestion[];
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="font-display text-base flex items-center gap-2">
+        {icon}
+        {title}
+      </CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {!suggestions || suggestions.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">No suggestions in this category.</p>
+      ) : (
+        <div className="space-y-3">
+          {suggestions.map((s, i) => (
+            <div key={i} className="p-4 rounded-lg border border-border space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold">{s.title}</p>
+                <div className="flex gap-2 shrink-0">
+                  <Badge variant="outline" className={`text-xs ${impactColors[s.impact] || ""}`}>
+                    {s.impact} impact
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    {effortLabels[s.effort] || s.effort}
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">{s.description}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
 
 const Scanner = () => {
   const [url, setUrl] = useState("");
@@ -59,6 +130,8 @@ const Scanner = () => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
   const [results, setResults] = useState<ScanResults | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -79,6 +152,7 @@ const Scanner = () => {
 
     setScanning(true);
     setResults(null);
+    setAiSuggestions(null);
     setProgress(10);
     setStatusText("Initializing scan...");
 
@@ -93,25 +167,32 @@ const Scanner = () => {
       if (psiError) throw psiError;
       if (!psiData.success) throw new Error(psiData.error || "PageSpeed analysis failed");
 
-      setProgress(70);
-      setStatusText("Saving results...");
+      setProgress(60);
+      setStatusText("Generating AI optimization suggestions...");
 
-      // Save to database
-      const { error: insertError } = await supabase
-        .from("scan_reports")
-        .insert({
+      // Fetch AI suggestions in parallel with DB save
+      const [aiResult, insertResult] = await Promise.all([
+        supabase.functions.invoke("ai-suggestions", { body: { scanResults: psiData } }),
+        supabase.from("scan_reports").insert({
           url: formattedUrl,
           user_id: user.id,
           status: "completed",
           overall_score: psiData.overallScore,
           results: psiData,
-        });
+        }),
+      ]);
 
-      if (insertError) throw insertError;
+      if (insertResult.error) throw insertResult.error;
 
       setProgress(100);
       setStatusText("Complete!");
       setResults(psiData);
+
+      if (aiResult.data?.success) {
+        setAiSuggestions(aiResult.data.suggestions);
+      } else {
+        console.warn("AI suggestions failed:", aiResult.data?.error);
+      }
 
       toast({ title: "Scan complete!", description: `Overall Score: ${psiData.overallScore}/100` });
     } catch (error: any) {
@@ -253,6 +334,7 @@ const Scanner = () => {
                 <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
                 <TabsTrigger value="charts">Comparison Charts</TabsTrigger>
                 <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+                <TabsTrigger value="ai-suggestions">AI Suggestions</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vitals">
@@ -409,6 +491,48 @@ const Scanner = () => {
                     </CardContent>
                   </Card>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="ai-suggestions">
+                {loadingSuggestions ? (
+                  <Card>
+                    <CardContent className="p-12 flex flex-col items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                      <p className="text-sm text-muted-foreground">Generating AI suggestions...</p>
+                    </CardContent>
+                  </Card>
+                ) : aiSuggestions ? (
+                  <div className="space-y-6">
+                    {/* Performance Fixes */}
+                    <SuggestionSection
+                      title="Performance Fixes"
+                      icon={<Zap className="h-5 w-5 text-score-average" />}
+                      description="Speed and loading optimizations"
+                      suggestions={aiSuggestions.performance}
+                    />
+                    {/* SEO Improvements */}
+                    <SuggestionSection
+                      title="SEO Improvements"
+                      icon={<Search className="h-5 w-5 text-primary" />}
+                      description="Search engine optimization recommendations"
+                      suggestions={aiSuggestions.seo}
+                    />
+                    {/* UX Improvements */}
+                    <SuggestionSection
+                      title="UX Improvements"
+                      icon={<Eye className="h-5 w-5 text-score-excellent" />}
+                      description="User experience and accessibility enhancements"
+                      suggestions={aiSuggestions.ux}
+                    />
+                  </div>
+                ) : (
+                  <Card className="bg-muted/50 border-dashed">
+                    <CardContent className="p-8 text-center">
+                      <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">AI suggestions were not available for this scan.</p>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
             </Tabs>
           </div>
