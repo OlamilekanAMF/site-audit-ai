@@ -28,7 +28,7 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Scanner", url: "/scan", icon: Search },
   { title: "Reports", url: "/reports", icon: FileText },
-  { title: "Pricing", url: "/pricing", icon: CreditCard },
+  { title: "Pricing", url: "/dashboard/pricing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
