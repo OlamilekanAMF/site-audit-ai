@@ -204,6 +204,7 @@ const Report = () => {
   const opportunities = results.opportunities || [];
   const diagnostics = results.diagnostics || [];
   const aiSuggestions = results.aiSuggestions || null;
+  const detectedIssues: any[] = results.detectedIssues || [];
 
   const barData = [
     { category: "Performance", mobile: mobile.performance || 0, desktop: desktop.performance || 0 },
