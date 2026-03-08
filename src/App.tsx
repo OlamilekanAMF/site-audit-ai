@@ -36,6 +36,7 @@ const App = () => (
               <Route path="/scan" element={<ProtectedRoute><Scanner /></ProtectedRoute>} />
               <Route path="/report/:id" element={<ProtectedRoute><Report /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>

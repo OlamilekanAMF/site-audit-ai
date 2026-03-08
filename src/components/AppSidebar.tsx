@@ -29,6 +29,7 @@ const navItems = [
   { title: "Scanner", url: "/scan", icon: Search },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "Pricing", url: "/pricing", icon: CreditCard },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
