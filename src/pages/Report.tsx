@@ -527,33 +527,109 @@ const Report = () => {
 
           {/* Core Web Vitals */}
           <TabsContent value="vitals">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(coreWebVitals).map(([key, vital]: [string, any]) => (
-                <Card key={key}>
+            <div className="space-y-6">
+              {/* Featured CWV Cards */}
+              <div className="grid md:grid-cols-3 gap-6">
+                {(() => {
+                  const cwvMetrics = [
+                    {
+                      key: "lcp",
+                      title: "Largest Contentful Paint (LCP)",
+                      explanation: "Measures loading performance — the time it takes for the largest visible content element to render. A good LCP is 2.5 seconds or less.",
+                      thresholds: { good: 2500, poor: 4000 },
+                      unit: "ms",
+                    },
+                    {
+                      key: "cls",
+                      title: "Cumulative Layout Shift (CLS)",
+                      explanation: "Measures visual stability — how much the page layout shifts unexpectedly during loading. A good CLS score is 0.1 or less.",
+                      thresholds: { good: 0.1, poor: 0.25 },
+                      unit: "",
+                    },
+                    {
+                      key: "inp",
+                      title: "Interaction to Next Paint (INP)",
+                      explanation: "Measures responsiveness — the delay between a user interaction and the next visual update. A good INP is 200 milliseconds or less.",
+                      thresholds: { good: 200, poor: 500 },
+                      unit: "ms",
+                      fallbackKey: "tbt",
+                      fallbackTitle: "Total Blocking Time (TBT)",
+                      fallbackExplanation: "Measures the total time the main thread was blocked, preventing input responsiveness. Used as a proxy for INP. A good TBT is 200ms or less.",
+                    },
+                  ];
+
+                  return cwvMetrics.map((metric) => {
+                    const vital = coreWebVitals[metric.key] || (metric.fallbackKey ? coreWebVitals[metric.fallbackKey] : null);
+                    const title = vital ? (coreWebVitals[metric.key] ? metric.title : metric.fallbackTitle || metric.title) : metric.title;
+                    const explanation = vital ? (coreWebVitals[metric.key] ? metric.explanation : metric.fallbackExplanation || metric.explanation) : metric.explanation;
+                    const score = vital?.score ?? 0;
+                    const statusLabel = score >= 0.9 ? "Good" : score >= 0.5 ? "Needs Improvement" : "Poor";
+                    const statusColor = score >= 0.9 ? "bg-score-excellent" : score >= 0.5 ? "bg-score-average" : "bg-score-poor";
+                    const statusTextColor = score >= 0.9 ? "text-score-excellent" : score >= 0.5 ? "text-score-average" : "text-score-poor";
+                    const statusIcon = score >= 0.9
+                      ? <CheckCircle className="h-5 w-5 text-score-excellent" />
+                      : score >= 0.5
+                        ? <AlertTriangle className="h-5 w-5 text-score-average" />
+                        : <XCircle className="h-5 w-5 text-score-poor" />;
+
+                    return (
+                      <Card key={metric.key} className="relative overflow-hidden">
+                        <div className={`absolute top-0 left-0 right-0 h-1 ${statusColor}`} />
+                        <CardContent className="p-6 space-y-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-display text-sm font-semibold leading-tight">{title}</h3>
+                            {statusIcon}
+                          </div>
+                          <div className="flex items-baseline gap-3">
+                            <span className={`font-display text-3xl font-bold ${statusTextColor}`}>
+                              {vital?.displayValue || "N/A"}
+                            </span>
+                            <Badge className={`${statusColor} text-white border-0 text-xs`}>
+                              {statusLabel}
+                            </Badge>
+                          </div>
+                          <Progress value={score * 100} className="h-1.5" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {explanation}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Additional Metrics */}
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Object.entries(coreWebVitals)
+                  .filter(([key]) => !["lcp", "cls", "inp"].includes(key))
+                  .map(([key, vital]: [string, any]) => (
+                    <Card key={key}>
+                      <CardContent className="p-5">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium">{vital.title}</p>
+                          {getCwvIcon(vital.score)}
+                        </div>
+                        <p className={`font-display text-2xl font-bold ${getScoreColor(vital.score * 100)}`}>
+                          {vital.displayValue}
+                        </p>
+                        <Progress value={vital.score * 100} className="h-1.5 mt-2" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                <Card>
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">{vital.title}</p>
-                      {getCwvIcon(vital.score)}
+                      <p className="text-sm font-medium">Time to Interactive</p>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <p className={`font-display text-2xl font-bold ${getScoreColor(vital.score * 100)}`}>
-                      {vital.displayValue}
+                    <p className="font-display text-2xl font-bold text-primary">{loadTime.displayValue || "N/A"}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {loadTime.value ? `${(loadTime.value / 1000).toFixed(1)}s until interactive` : ""}
                     </p>
-                    <Progress value={vital.score * 100} className="h-1.5 mt-2" />
                   </CardContent>
                 </Card>
-              ))}
-              <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium">Time to Interactive</p>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <p className="font-display text-2xl font-bold text-primary">{loadTime.displayValue || "N/A"}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {loadTime.value ? `${(loadTime.value / 1000).toFixed(1)}s until interactive` : ""}
-                  </p>
-                </CardContent>
-              </Card>
+              </div>
             </div>
           </TabsContent>
 
