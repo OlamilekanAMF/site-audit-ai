@@ -94,6 +94,7 @@ const Scanner = () => {
 
     setScanning(true);
     setResults(null);
+    setAiSuggestions(null);
     setProgress(10);
     setStatusText("Initializing scan...");
 
@@ -108,25 +109,32 @@ const Scanner = () => {
       if (psiError) throw psiError;
       if (!psiData.success) throw new Error(psiData.error || "PageSpeed analysis failed");
 
-      setProgress(70);
-      setStatusText("Saving results...");
+      setProgress(60);
+      setStatusText("Generating AI optimization suggestions...");
 
-      // Save to database
-      const { error: insertError } = await supabase
-        .from("scan_reports")
-        .insert({
+      // Fetch AI suggestions in parallel with DB save
+      const [aiResult, insertResult] = await Promise.all([
+        supabase.functions.invoke("ai-suggestions", { body: { scanResults: psiData } }),
+        supabase.from("scan_reports").insert({
           url: formattedUrl,
           user_id: user.id,
           status: "completed",
           overall_score: psiData.overallScore,
           results: psiData,
-        });
+        }),
+      ]);
 
-      if (insertError) throw insertError;
+      if (insertResult.error) throw insertResult.error;
 
       setProgress(100);
       setStatusText("Complete!");
       setResults(psiData);
+
+      if (aiResult.data?.success) {
+        setAiSuggestions(aiResult.data.suggestions);
+      } else {
+        console.warn("AI suggestions failed:", aiResult.data?.error);
+      }
 
       toast({ title: "Scan complete!", description: `Overall Score: ${psiData.overallScore}/100` });
     } catch (error: any) {
