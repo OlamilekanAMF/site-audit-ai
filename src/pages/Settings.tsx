@@ -159,7 +159,7 @@ const Settings = () => {
     }
     setExporting(false);
   };
-
+  const initials = fullName
     ? fullName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.charAt(0).toUpperCase() || "?";
 
