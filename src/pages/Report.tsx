@@ -151,6 +151,7 @@ const Report = () => {
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [historyScans, setHistoryScans] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -159,11 +160,41 @@ const Report = () => {
         .select("*")
         .eq("id", id)
         .single();
-      if (data) setReport(data);
+      if (data) {
+        setReport(data);
+        // Fetch all completed scans for the same URL
+        const { data: history } = await supabase
+          .from("scan_reports")
+          .select("id, created_at, overall_score, results, url")
+          .eq("url", data.url)
+          .eq("user_id", data.user_id)
+          .eq("status", "completed")
+          .order("created_at", { ascending: true });
+        if (history) setHistoryScans(history);
+      }
       setLoading(false);
     };
     fetchReport();
   }, [id]);
+
+  const historyChartData = useMemo(() => {
+    return historyScans.map((scan) => {
+      const cwv = scan.results?.coreWebVitals || {};
+      return {
+        date: new Date(scan.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+        fullDate: new Date(scan.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        id: scan.id,
+        overall: scan.overall_score || 0,
+        lcp: cwv.lcp?.value ? Math.round(cwv.lcp.value) : null,
+        cls: cwv.cls?.value != null ? Number(cwv.cls.value.toFixed(3)) : null,
+        tbt: cwv.tbt?.value ? Math.round(cwv.tbt.value) : null,
+        fcp: cwv.fcp?.value ? Math.round(cwv.fcp.value) : null,
+        performance: scan.results?.mobile?.performance || 0,
+        seo: scan.results?.mobile?.seo || 0,
+        accessibility: scan.results?.mobile?.accessibility || 0,
+      };
+    });
+  }, [historyScans]);
 
   const results = report?.results || {};
   const mobile = results.mobile || {};
