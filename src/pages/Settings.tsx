@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock, Download } from "lucide-react";
+import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock, Download, FileSpreadsheet } from "lucide-react";
 
 const Settings = () => {
   const { user } = useAuth();
