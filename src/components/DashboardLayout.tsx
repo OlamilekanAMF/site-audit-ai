@@ -18,6 +18,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card">
             <SidebarTrigger className="ml-0" />
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <Button
                 variant="ghost"
                 size="icon"
