@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ScoreGauge, getScoreTextClass } from "@/components/ScoreGauge";
+import { CoreWebVitalsAssessment } from "@/components/CoreWebVitalsAssessment";
 import {
   ArrowLeft,
   Download,
@@ -344,6 +345,11 @@ const Report = () => {
             </div>
           </div>
         </div>
+
+        {/* Core Web Vitals Assessment — top section */}
+        {Object.keys(coreWebVitals).length > 0 && (
+          <CoreWebVitalsAssessment coreWebVitals={coreWebVitals} />
+        )}
 
         {/* Score Summary Row — 4 circular gauges */}
         <Card>
