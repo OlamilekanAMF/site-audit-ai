@@ -66,6 +66,64 @@ const chartConfig = {
   score: { label: "Score", color: "hsl(var(--primary))" },
 } satisfies ChartConfig;
 
+const impactColors: Record<string, string> = {
+  high: "bg-score-poor/10 text-score-poor border-score-poor/20",
+  medium: "bg-score-average/10 text-score-average border-score-average/20",
+  low: "bg-score-excellent/10 text-score-excellent border-score-excellent/20",
+};
+
+const effortLabels: Record<string, string> = {
+  easy: "🟢 Easy",
+  moderate: "🟡 Moderate",
+  hard: "🔴 Hard",
+};
+
+const SuggestionSection = ({
+  title,
+  icon,
+  description,
+  suggestions,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  description: string;
+  suggestions: Suggestion[];
+}) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className="font-display text-base flex items-center gap-2">
+        {icon}
+        {title}
+      </CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {!suggestions || suggestions.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">No suggestions in this category.</p>
+      ) : (
+        <div className="space-y-3">
+          {suggestions.map((s, i) => (
+            <div key={i} className="p-4 rounded-lg border border-border space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-sm font-semibold">{s.title}</p>
+                <div className="flex gap-2 shrink-0">
+                  <Badge variant="outline" className={`text-xs ${impactColors[s.impact] || ""}`}>
+                    {s.impact} impact
+                  </Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    {effortLabels[s.effort] || s.effort}
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">{s.description}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
 const Scanner = () => {
   const [url, setUrl] = useState("");
   const [scanning, setScanning] = useState(false);
