@@ -6,73 +6,157 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Download, ExternalLink, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ArrowLeft,
+  Download,
+  ExternalLink,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  Zap,
+  Search,
+  Eye,
+  Shield,
+  Clock,
+  Smartphone,
+  Monitor,
+  TrendingUp,
+  Lightbulb,
+  BarChart3,
+} from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
-
-type ReportData = {
-  id: string;
-  url: string;
-  status: string;
-  overall_score: number | null;
-  results: any;
-  created_at: string;
-};
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  Radar,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const chartConfig = {
+  mobile: { label: "Mobile", color: "hsl(var(--primary))" },
+  desktop: { label: "Desktop", color: "hsl(var(--accent))" },
   score: { label: "Score", color: "hsl(var(--primary))" },
 } satisfies ChartConfig;
 
+const impactColors: Record<string, string> = {
+  high: "bg-score-poor/10 text-score-poor border-score-poor/20",
+  medium: "bg-score-average/10 text-score-average border-score-average/20",
+  low: "bg-score-excellent/10 text-score-excellent border-score-excellent/20",
+};
+
+const effortLabels: Record<string, string> = {
+  easy: "🟢 Easy",
+  moderate: "🟡 Moderate",
+  hard: "🔴 Hard",
+};
+
+const getScoreColor = (score: number) => {
+  if (score >= 90) return "text-score-excellent";
+  if (score >= 50) return "text-score-average";
+  return "text-score-poor";
+};
+
+const getScoreBorderColor = (score: number) => {
+  if (score >= 90) return "border-score-excellent";
+  if (score >= 50) return "border-score-average";
+  return "border-score-poor";
+};
+
+const getScoreBg = (score: number) => {
+  if (score >= 90) return "bg-score-excellent";
+  if (score >= 50) return "bg-score-average";
+  return "bg-score-poor";
+};
+
+const getScoreLabel = (score: number) => {
+  if (score >= 90) return "Good";
+  if (score >= 50) return "Needs Improvement";
+  return "Poor";
+};
+
+const getCwvIcon = (score: number) => {
+  if (score >= 0.9) return <CheckCircle className="h-4 w-4 text-score-excellent" />;
+  if (score >= 0.5) return <AlertTriangle className="h-4 w-4 text-score-average" />;
+  return <XCircle className="h-4 w-4 text-score-poor" />;
+};
+
+// -- Score Circle Component --
+const ScoreCircle = ({ score, label, size = "lg" }: { score: number; label: string; size?: "sm" | "lg" }) => {
+  const dims = size === "lg" ? "h-28 w-28" : "h-20 w-20";
+  const textSize = size === "lg" ? "text-4xl" : "text-2xl";
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className={`${dims} rounded-full border-4 flex items-center justify-center ${getScoreBorderColor(score)}`}>
+        <span className={`font-display ${textSize} font-bold ${getScoreColor(score)}`}>{score}</span>
+      </div>
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <Badge className={`${getScoreBg(score)} text-white border-0 text-xs`}>{getScoreLabel(score)}</Badge>
+    </div>
+  );
+};
+
+// -- Suggestion Section Component --
+const SuggestionSection = ({
+  title,
+  icon,
+  suggestions,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  suggestions: any[];
+}) => (
+  <div className="space-y-3">
+    <h3 className="font-display text-sm font-semibold flex items-center gap-2">{icon} {title}</h3>
+    {!suggestions || suggestions.length === 0 ? (
+      <p className="text-sm text-muted-foreground py-2">No suggestions in this category.</p>
+    ) : (
+      suggestions.map((s: any, i: number) => (
+        <div key={i} className="p-4 rounded-lg border border-border space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-semibold">{s.title}</p>
+            <div className="flex gap-2 shrink-0">
+              <Badge variant="outline" className={`text-xs ${impactColors[s.impact] || ""}`}>
+                {s.impact} impact
+              </Badge>
+              <Badge variant="secondary" className="text-xs">
+                {effortLabels[s.effort] || s.effort}
+              </Badge>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">{s.description}</p>
+        </div>
+      ))
+    )}
+  </div>
+);
+
 const Report = () => {
   const { id } = useParams();
-  const [report, setReport] = useState<ReportData | null>(null);
+  const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchReport = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("scan_reports")
         .select("*")
         .eq("id", id)
         .single();
-
-      if (data) setReport(data as ReportData);
+      if (data) setReport(data);
       setLoading(false);
     };
     fetchReport();
   }, [id]);
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-score-excellent";
-    if (score >= 60) return "text-score-good";
-    if (score >= 40) return "text-score-average";
-    return "text-score-poor";
-  };
-
-  const getScoreBg = (score: number) => {
-    if (score >= 80) return "bg-score-excellent/10";
-    if (score >= 60) return "bg-score-good/10";
-    if (score >= 40) return "bg-score-average/10";
-    return "bg-score-poor/10";
-  };
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case "pass": return <CheckCircle className="h-4 w-4 text-score-excellent" />;
-      case "warning": return <AlertTriangle className="h-4 w-4 text-score-average" />;
-      case "error": return <XCircle className="h-4 w-4 text-score-poor" />;
-      default: return null;
-    }
-  };
-
-  const handleDownloadPDF = () => {
-    window.print();
-  };
 
   if (loading) {
     return (
@@ -93,17 +177,26 @@ const Report = () => {
   }
 
   const results = report.results || {};
-  const categories = results.categories || [];
-  const findings = results.findings || [];
+  const mobile = results.mobile || {};
+  const desktop = results.desktop || {};
+  const coreWebVitals = results.coreWebVitals || {};
+  const loadTime = results.loadTime || {};
+  const opportunities = results.opportunities || [];
+  const diagnostics = results.diagnostics || [];
+  const aiSuggestions = results.aiSuggestions || null;
 
-  const radarData = categories.map((cat: any) => ({
-    category: cat.name,
-    score: cat.score,
-  }));
+  const barData = [
+    { category: "Performance", mobile: mobile.performance || 0, desktop: desktop.performance || 0 },
+    { category: "SEO", mobile: mobile.seo || 0, desktop: desktop.seo || 0 },
+    { category: "Accessibility", mobile: mobile.accessibility || 0, desktop: desktop.accessibility || 0 },
+    { category: "Best Practices", mobile: mobile.bestPractices || 0, desktop: desktop.bestPractices || 0 },
+  ];
+
+  const radarData = barData.map((d) => ({ category: d.category, score: d.mobile }));
 
   return (
     <DashboardLayout>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
@@ -121,112 +214,235 @@ const Report = () => {
               </span>
             </div>
           </div>
-          <Button variant="outline" onClick={handleDownloadPDF} className="gap-2">
+          <Button variant="outline" onClick={() => window.print()} className="gap-2">
             <Download className="h-4 w-4" /> Download PDF
           </Button>
         </div>
 
-        {/* Overall score */}
+        {/* Score Overview */}
         <Card>
-          <CardContent className="p-8 flex items-center gap-8">
-            <div className={`h-28 w-28 rounded-full flex items-center justify-center ${getScoreBg(report.overall_score || 0)}`}>
-              <span className={`font-display text-4xl font-bold ${getScoreColor(report.overall_score || 0)}`}>
-                {report.overall_score || 0}
-              </span>
-            </div>
-            <div>
-              <h2 className="font-display text-xl font-semibold">Overall Score</h2>
-              <p className="text-muted-foreground">
-                {(report.overall_score || 0) >= 80
-                  ? "Great! Your website follows most best practices."
-                  : (report.overall_score || 0) >= 60
-                  ? "Good, but there are areas for improvement."
-                  : "Your website needs significant improvements."}
-              </p>
+          <CardContent className="p-8">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 items-center">
+              <ScoreCircle score={report.overall_score || 0} label="Overall" size="lg" />
+              {[
+                { label: "Performance", icon: Zap, score: mobile.performance || 0 },
+                { label: "SEO", icon: Search, score: mobile.seo || 0 },
+                { label: "Accessibility", icon: Eye, score: mobile.accessibility || 0 },
+                { label: "Best Practices", icon: Shield, score: mobile.bestPractices || 0 },
+              ].map((cat) => (
+                <ScoreCircle key={cat.label} score={cat.score} label={cat.label} size="sm" />
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Category scores */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display">Category Scores</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {radarData.length > 0 ? (
-                <ChartContainer config={chartConfig} className="h-64 w-full">
-                  <RadarChart data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="category" className="text-xs" />
-                    <Radar
-                      name="Score"
-                      dataKey="score"
-                      stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.2}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </RadarChart>
-                </ChartContainer>
-              ) : (
-                <p className="text-muted-foreground text-center py-8">No category data</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="space-y-3">
-            {categories.map((cat: any) => (
-              <Card key={cat.name}>
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{cat.name}</p>
-                    <p className="text-xs text-muted-foreground">{cat.description}</p>
+        {/* Mobile vs Desktop Breakdown */}
+        <div className="grid md:grid-cols-4 gap-4">
+          {[
+            { label: "Performance", icon: Zap, m: mobile.performance, d: desktop.performance },
+            { label: "SEO", icon: Search, m: mobile.seo, d: desktop.seo },
+            { label: "Accessibility", icon: Eye, m: mobile.accessibility, d: desktop.accessibility },
+            { label: "Best Practices", icon: Shield, m: mobile.bestPractices, d: desktop.bestPractices },
+          ].map((cat) => (
+            <Card key={cat.label}>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <cat.icon className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">{cat.label}</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Smartphone className="h-3 w-3" /> Mobile</span>
+                    <span className={`font-display font-bold ${getScoreColor(cat.m || 0)}`}>{cat.m || 0}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Progress value={cat.score} className="w-20 h-2" />
-                    <span className={`font-display font-bold text-lg min-w-[2.5rem] text-right ${getScoreColor(cat.score)}`}>
-                      {cat.score}
-                    </span>
+                  <Progress value={cat.m || 0} className="h-1.5" />
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground"><Monitor className="h-3 w-3" /> Desktop</span>
+                    <span className={`font-display font-bold ${getScoreColor(cat.d || 0)}`}>{cat.d || 0}</span>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <Progress value={cat.d || 0} className="h-1.5" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Findings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-display">Detailed Findings</CardTitle>
-            <CardDescription>Issues found and recommendations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {findings.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No findings</p>
-            ) : (
-              <div className="space-y-3">
-                {findings.map((finding: any, i: number) => (
-                  <div key={i} className="flex gap-3 p-3 rounded-lg border border-border">
-                    {getSeverityIcon(finding.severity)}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-sm">{finding.title}</p>
-                        <Badge variant={finding.severity === "pass" ? "default" : finding.severity === "warning" ? "secondary" : "destructive"} className="text-xs">
-                          {finding.category}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{finding.description}</p>
-                      {finding.recommendation && (
-                        <p className="text-sm text-primary mt-1">💡 {finding.recommendation}</p>
-                      )}
+        {/* Tabbed Content */}
+        <Tabs defaultValue="vitals" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
+            <TabsTrigger value="charts">Charts</TabsTrigger>
+            <TabsTrigger value="issues">Issues & Opportunities</TabsTrigger>
+            <TabsTrigger value="ai">AI Recommendations</TabsTrigger>
+          </TabsList>
+
+          {/* Core Web Vitals */}
+          <TabsContent value="vitals">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(coreWebVitals).map(([key, vital]: [string, any]) => (
+                <Card key={key}>
+                  <CardContent className="p-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">{vital.title}</p>
+                      {getCwvIcon(vital.score)}
                     </div>
+                    <p className={`font-display text-2xl font-bold ${getScoreColor(vital.score * 100)}`}>
+                      {vital.displayValue}
+                    </p>
+                    <Progress value={vital.score * 100} className="h-1.5 mt-2" />
+                  </CardContent>
+                </Card>
+              ))}
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">Time to Interactive</p>
+                    <Clock className="h-4 w-4 text-muted-foreground" />
                   </div>
-                ))}
-              </div>
+                  <p className="font-display text-2xl font-bold text-primary">{loadTime.displayValue || "N/A"}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {loadTime.value ? `${(loadTime.value / 1000).toFixed(1)}s until interactive` : ""}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Charts */}
+          <TabsContent value="charts">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Mobile vs Desktop</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-72 w-full">
+                    <BarChart data={barData}>
+                      <XAxis dataKey="category" tick={{ fontSize: 12 }} />
+                      <YAxis domain={[0, 100]} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="mobile" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="desktop" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-base">Mobile Score Radar</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={chartConfig} className="h-72 w-full">
+                    <RadarChart data={radarData}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="category" tick={{ fontSize: 11 }} />
+                      <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </RadarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Issues & Opportunities */}
+          <TabsContent value="issues">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-base flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-score-average" /> Opportunities
+                  </CardTitle>
+                  <CardDescription>Suggestions to improve page load speed</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {opportunities.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">No major opportunities — great job!</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {opportunities.map((opp: any, i: number) => (
+                        <div key={i} className="flex gap-3 p-3 rounded-lg border border-border">
+                          <TrendingUp className="h-4 w-4 text-score-average shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{opp.title}</p>
+                            {opp.savings && (
+                              <Badge variant="secondary" className="mt-1 text-xs">Potential savings: {opp.savings}</Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-base flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" /> Diagnostics
+                  </CardTitle>
+                  <CardDescription>Additional information about your page</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {diagnostics.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">No diagnostics to show</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {diagnostics.map((diag: any, i: number) => (
+                        <div key={i} className="flex gap-3 p-3 rounded-lg border border-border">
+                          <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{diag.title}</p>
+                            {diag.displayValue && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{diag.displayValue}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* AI Recommendations */}
+          <TabsContent value="ai">
+            {aiSuggestions ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="font-display text-base flex items-center gap-2">
+                    <Lightbulb className="h-5 w-5 text-primary" /> AI-Generated Optimization Recommendations
+                  </CardTitle>
+                  <CardDescription>Actionable recommendations powered by AI analysis of your scan results</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                  <SuggestionSection
+                    title="Performance Fixes"
+                    icon={<Zap className="h-4 w-4 text-score-average" />}
+                    suggestions={aiSuggestions.performance || []}
+                  />
+                  <SuggestionSection
+                    title="SEO Improvements"
+                    icon={<Search className="h-4 w-4 text-primary" />}
+                    suggestions={aiSuggestions.seo || []}
+                  />
+                  <SuggestionSection
+                    title="UX & Accessibility Improvements"
+                    icon={<Eye className="h-4 w-4 text-score-excellent" />}
+                    suggestions={aiSuggestions.ux || []}
+                  />
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="bg-muted/50 border-dashed">
+                <CardContent className="p-8 text-center">
+                  <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">AI recommendations were not available for this scan.</p>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
