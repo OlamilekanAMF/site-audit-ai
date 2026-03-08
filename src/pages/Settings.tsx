@@ -335,25 +335,44 @@ const Settings = () => {
               <Download className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="font-display text-base">Export Data</CardTitle>
             </div>
-            <CardDescription>Download all your scan reports as a JSON file.</CardDescription>
+            <CardDescription>Download all your scan reports in your preferred format.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">Export All Reports</p>
+                <p className="text-sm font-medium">JSON Export</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Download a JSON file containing all your scan data and results.
+                  Full data with all details and nested results.
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2 shrink-0"
-                onClick={handleExportData}
+                onClick={handleExportJSON}
                 disabled={exporting}
               >
                 {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                 Export JSON
+              </Button>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">CSV Export</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Spreadsheet-friendly format for Excel or Google Sheets.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 shrink-0"
+                onClick={handleExportCSV}
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
+                Export CSV
               </Button>
             </div>
           </CardContent>
