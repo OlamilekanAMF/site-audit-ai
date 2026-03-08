@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Moon, Sun } from "lucide-react";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <header className="h-14 flex items-center justify-between border-b border-border px-4 bg-card">
             <SidebarTrigger className="ml-0" />
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <Button
                 variant="ghost"
                 size="icon"
