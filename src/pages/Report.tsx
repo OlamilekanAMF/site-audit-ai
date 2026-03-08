@@ -346,6 +346,11 @@ const Report = () => {
           </div>
         </div>
 
+        {/* Core Web Vitals Assessment — top section */}
+        {Object.keys(coreWebVitals).length > 0 && (
+          <CoreWebVitalsAssessment coreWebVitals={coreWebVitals} />
+        )}
+
         {/* Score Summary Row — 4 circular gauges */}
         <Card>
           <CardContent className="p-6 sm:p-8">
