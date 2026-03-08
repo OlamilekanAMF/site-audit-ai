@@ -434,6 +434,48 @@ const Scanner = () => {
                   </Card>
                 </div>
               </TabsContent>
+
+              <TabsContent value="ai-suggestions">
+                {loadingSuggestions ? (
+                  <Card>
+                    <CardContent className="p-12 flex flex-col items-center justify-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                      <p className="text-sm text-muted-foreground">Generating AI suggestions...</p>
+                    </CardContent>
+                  </Card>
+                ) : aiSuggestions ? (
+                  <div className="space-y-6">
+                    {/* Performance Fixes */}
+                    <SuggestionSection
+                      title="Performance Fixes"
+                      icon={<Zap className="h-5 w-5 text-score-average" />}
+                      description="Speed and loading optimizations"
+                      suggestions={aiSuggestions.performance}
+                    />
+                    {/* SEO Improvements */}
+                    <SuggestionSection
+                      title="SEO Improvements"
+                      icon={<Search className="h-5 w-5 text-primary" />}
+                      description="Search engine optimization recommendations"
+                      suggestions={aiSuggestions.seo}
+                    />
+                    {/* UX Improvements */}
+                    <SuggestionSection
+                      title="UX Improvements"
+                      icon={<Eye className="h-5 w-5 text-score-excellent" />}
+                      description="User experience and accessibility enhancements"
+                      suggestions={aiSuggestions.ux}
+                    />
+                  </div>
+                ) : (
+                  <Card className="bg-muted/50 border-dashed">
+                    <CardContent className="p-8 text-center">
+                      <Lightbulb className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">AI suggestions were not available for this scan.</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
             </Tabs>
           </div>
         )}
