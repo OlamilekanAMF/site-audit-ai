@@ -25,10 +25,21 @@ Deno.serve(async (req) => {
 
     console.log('Running PageSpeed Insights for:', formattedUrl);
 
+    const apiKey = Deno.env.get('GOOGLE_PAGESPEED_API_KEY');
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Google PageSpeed API key is not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const baseUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed`;
+    const params = `url=${encodeURIComponent(formattedUrl)}&category=performance&category=seo&category=accessibility&category=best-practices&key=${apiKey}`;
+
     // Fetch both mobile and desktop strategies in parallel
     const [mobileRes, desktopRes] = await Promise.all([
-      fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=mobile&category=performance&category=seo&category=accessibility&category=best-practices`),
-      fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(formattedUrl)}&strategy=desktop&category=performance&category=seo&category=accessibility&category=best-practices`),
+      fetch(`${baseUrl}?${params}&strategy=mobile`),
+      fetch(`${baseUrl}?${params}&strategy=desktop`),
     ]);
 
     if (!mobileRes.ok) {
