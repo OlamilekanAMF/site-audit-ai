@@ -296,7 +296,7 @@ export const CoreWebVitalsAssessment = ({ coreWebVitals, className }: CoreWebVit
           {/* Primary CWV Metrics Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border/50">
             {primaryMetrics.map((metric, i) => (
-              <MetricCard key={i} metric={metric} />
+              <MetricCard key={i} metric={metric} delay={i * 120} />
             ))}
           </div>
 
@@ -310,7 +310,7 @@ export const CoreWebVitalsAssessment = ({ coreWebVitals, className }: CoreWebVit
           {/* Other Metrics Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border/50 px-2">
             {otherMetrics.map((metric, i) => (
-              <MetricCard key={i} metric={metric} />
+              <MetricCard key={i} metric={metric} delay={(primaryMetrics.length + i) * 120} />
             ))}
           </div>
 
