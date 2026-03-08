@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Moon, Sun } from "lucide-react";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
