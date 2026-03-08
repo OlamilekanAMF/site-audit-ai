@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import ResetPassword from "./pages/ResetPassword";
 import Pricing from "./pages/Pricing";
+import DashboardPricing from "./pages/DashboardPricing";
 import Dashboard from "./pages/Dashboard";
 import Scanner from "./pages/Scanner";
 import Report from "./pages/Report";
