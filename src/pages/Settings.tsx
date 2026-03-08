@@ -134,26 +134,58 @@ const Settings = () => {
     setChangingPassword(false);
   };
 
-  const handleExportData = async () => {
+  const fetchReports = async () => {
+    const { data, error } = await supabase
+      .from("scan_reports")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportJSON = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase
-        .from("scan_reports")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const data = await fetchReports();
+      downloadFile(JSON.stringify(data, null, 2), `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.json`, "application/json");
+      toast({ title: "Export complete", description: `${data.length} reports exported as JSON.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+    setExporting(false);
+  };
 
-      if (error) throw error;
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ title: "Export complete", description: `${data?.length || 0} reports exported.` });
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const data = await fetchReports();
+      if (!data.length) {
+        toast({ title: "No data", description: "No reports to export.", variant: "destructive" });
+        setExporting(false);
+        return;
+      }
+      const escape = (val: any) => {
+        const str = String(val ?? "");
+        return str.includes(",") || str.includes('"') || str.includes("\n")
+          ? `"${str.replace(/"/g, '""')}"` : str;
+      };
+      const headers = ["id", "url", "status", "overall_score", "created_at", "updated_at"];
+      const rows = data.map((r: any) => headers.map((h) => escape(r[h])).join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      downloadFile(csv, `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.csv`, "text/csv");
+      toast({ title: "Export complete", description: `${data.length} reports exported as CSV.` });
     } catch (err: any) {
       toast({ title: "Export failed", description: err.message, variant: "destructive" });
     }
