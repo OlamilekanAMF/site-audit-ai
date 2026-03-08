@@ -72,6 +72,8 @@ const Scanner = () => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
   const [results, setResults] = useState<ScanResults | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestions | null>(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
