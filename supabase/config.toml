@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.pagespeed-insights]
 verify_jwt = false
+
+[functions.ai-suggestions]
+verify_jwt = false
