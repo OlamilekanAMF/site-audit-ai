@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
+import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock } from "lucide-react";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -34,6 +34,9 @@ const Settings = () => {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -107,6 +110,27 @@ const Settings = () => {
       toast({ title: "Profile updated" });
     }
     setSaving(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      toast({ title: "Password too short", description: "Must be at least 8 characters.", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords don't match", description: "Please make sure both passwords match.", variant: "destructive" });
+      return;
+    }
+    setChangingPassword(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      toast({ title: "Failed to update password", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Password updated" });
+      setNewPassword("");
+      setConfirmPassword("");
+    }
+    setChangingPassword(false);
   };
 
   const initials = fullName
@@ -198,6 +222,51 @@ const Settings = () => {
                 </Button>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Change Password */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="font-display text-base">Change Password</CardTitle>
+            </div>
+            <CardDescription>Update your password to keep your account secure.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="max-w-sm"
+                minLength={8}
+              />
+              <p className="text-xs text-muted-foreground">Minimum 8 characters.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <Button
+              onClick={handleChangePassword}
+              disabled={changingPassword || !newPassword || !confirmPassword}
+              className="gap-2"
+            >
+              {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+              Update Password
+            </Button>
           </CardContent>
         </Card>
 
