@@ -20,7 +20,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock, Download } from "lucide-react";
+import { Camera, Loader2, Save, Trash2, AlertTriangle, Lock, Download, FileSpreadsheet } from "lucide-react";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -134,26 +134,58 @@ const Settings = () => {
     setChangingPassword(false);
   };
 
-  const handleExportData = async () => {
+  const fetchReports = async () => {
+    const { data, error } = await supabase
+      .from("scan_reports")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data || [];
+  };
+
+  const downloadFile = (content: string, filename: string, type: string) => {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportJSON = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase
-        .from("scan_reports")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const data = await fetchReports();
+      downloadFile(JSON.stringify(data, null, 2), `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.json`, "application/json");
+      toast({ title: "Export complete", description: `${data.length} reports exported as JSON.` });
+    } catch (err: any) {
+      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    }
+    setExporting(false);
+  };
 
-      if (error) throw error;
-
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({ title: "Export complete", description: `${data?.length || 0} reports exported.` });
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      const data = await fetchReports();
+      if (!data.length) {
+        toast({ title: "No data", description: "No reports to export.", variant: "destructive" });
+        setExporting(false);
+        return;
+      }
+      const escape = (val: any) => {
+        const str = String(val ?? "");
+        return str.includes(",") || str.includes('"') || str.includes("\n")
+          ? `"${str.replace(/"/g, '""')}"` : str;
+      };
+      const headers = ["id", "url", "status", "overall_score", "created_at", "updated_at"];
+      const rows = data.map((r: any) => headers.map((h) => escape(r[h])).join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      downloadFile(csv, `sitedoctor-reports-${new Date().toISOString().split("T")[0]}.csv`, "text/csv");
+      toast({ title: "Export complete", description: `${data.length} reports exported as CSV.` });
     } catch (err: any) {
       toast({ title: "Export failed", description: err.message, variant: "destructive" });
     }
@@ -303,25 +335,44 @@ const Settings = () => {
               <Download className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="font-display text-base">Export Data</CardTitle>
             </div>
-            <CardDescription>Download all your scan reports as a JSON file.</CardDescription>
+            <CardDescription>Download all your scan reports in your preferred format.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">Export All Reports</p>
+                <p className="text-sm font-medium">JSON Export</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Download a JSON file containing all your scan data and results.
+                  Full data with all details and nested results.
                 </p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-2 shrink-0"
-                onClick={handleExportData}
+                onClick={handleExportJSON}
                 disabled={exporting}
               >
                 {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                 Export JSON
+              </Button>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">CSV Export</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Spreadsheet-friendly format for Excel or Google Sheets.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 shrink-0"
+                onClick={handleExportCSV}
+                disabled={exporting}
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileSpreadsheet className="h-3.5 w-3.5" />}
+                Export CSV
               </Button>
             </div>
           </CardContent>
