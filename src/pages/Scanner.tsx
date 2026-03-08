@@ -276,6 +276,7 @@ const Scanner = () => {
                 <TabsTrigger value="vitals">Core Web Vitals</TabsTrigger>
                 <TabsTrigger value="charts">Comparison Charts</TabsTrigger>
                 <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+                <TabsTrigger value="ai-suggestions">AI Suggestions</TabsTrigger>
               </TabsList>
 
               <TabsContent value="vitals">
