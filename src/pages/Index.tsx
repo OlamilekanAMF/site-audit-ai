@@ -17,6 +17,8 @@ import {
   FileText,
   Star,
   Quote,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 const features = [
