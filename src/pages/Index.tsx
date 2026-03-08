@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 import {
   Stethoscope,
   Zap,
@@ -16,6 +17,8 @@ import {
   FileText,
   Star,
   Quote,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 const features = [
@@ -171,6 +174,8 @@ const fadeUp = {
 };
 
 const Index = () => {
+  const { theme, setTheme } = useTheme();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -187,6 +192,15 @@ const Index = () => {
             <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
           </div>
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label="Toggle dark mode"
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </Button>
             <Link to="/login">
               <Button variant="ghost" size="sm">Login</Button>
             </Link>
