@@ -7,8 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Loader2, Save, User } from "lucide-react";
+import { Camera, Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
 
 const Settings = () => {
   const { user } = useAuth();
@@ -20,6 +32,8 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -184,6 +198,80 @@ const Settings = () => {
                 </Button>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <CardTitle className="font-display text-base text-destructive">Danger Zone</CardTitle>
+            </div>
+            <CardDescription>Irreversible actions that affect your account.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Separator className="mb-4" />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Delete Account</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Permanently delete your account and all associated data. This cannot be undone.
+                </p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="gap-2 shrink-0">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete Account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete your account, all your scan reports, and profile data. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="space-y-2 py-2">
+                    <Label htmlFor="deleteConfirm" className="text-sm">
+                      Type <span className="font-mono font-semibold text-destructive">delete my account</span> to confirm
+                    </Label>
+                    <Input
+                      id="deleteConfirm"
+                      placeholder="delete my account"
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    />
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      disabled={deleteConfirmText !== "delete my account" || deleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        setDeleting(true);
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          const res = await supabase.functions.invoke("delete-account", {
+                            headers: { Authorization: `Bearer ${session?.access_token}` },
+                          });
+                          if (res.error) throw res.error;
+                          toast({ title: "Account deleted", description: "Your account has been permanently removed." });
+                          await supabase.auth.signOut();
+                        } catch (err: any) {
+                          toast({ title: "Failed to delete account", description: err.message, variant: "destructive" });
+                          setDeleting(false);
+                        }
+                      }}
+                    >
+                      {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Delete Account
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
       </div>
