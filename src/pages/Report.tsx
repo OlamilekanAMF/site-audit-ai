@@ -196,6 +196,230 @@ const Report = () => {
 
   const radarData = barData.map((d) => ({ category: d.category, score: d.mobile }));
 
+  const handleDownloadPdf = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = doc.internal.pageSize.getWidth();
+      const margin = 18;
+      const contentW = W - margin * 2;
+      let y = 20;
+
+      const addPage = () => { doc.addPage(); y = 20; };
+      const checkPage = (need: number) => { if (y + need > 270) addPage(); };
+
+      // --- Header ---
+      doc.setFillColor(17, 24, 39);
+      doc.rect(0, 0, W, 44, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("Website Audit Report", margin, 20);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(report.url, margin, 28);
+      doc.text(`Scan Date: ${new Date(report.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, 35);
+      y = 54;
+
+      // --- Score Summary ---
+      doc.setTextColor(17, 24, 39);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Score Summary", margin, y);
+      y += 8;
+
+      const scoreColor = (s: number): [number, number, number] =>
+        s >= 90 ? [22, 163, 74] : s >= 50 ? [234, 179, 8] : [220, 38, 38];
+
+      const drawScore = (label: string, score: number, x: number) => {
+        const [r, g, b] = scoreColor(score);
+        doc.setFillColor(r, g, b);
+        doc.circle(x + 12, y + 10, 10, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        const scoreStr = String(score);
+        doc.text(scoreStr, x + 12 - doc.getTextWidth(scoreStr) / 2, y + 14);
+        doc.setTextColor(17, 24, 39);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        const labelW = doc.getTextWidth(label);
+        doc.text(label, x + 12 - labelW / 2, y + 24);
+      };
+
+      const cols = 5;
+      const colW = contentW / cols;
+      drawScore("Overall", report.overall_score || 0, margin);
+      drawScore("Performance", mobile.performance || 0, margin + colW);
+      drawScore("SEO", mobile.seo || 0, margin + colW * 2);
+      drawScore("Accessibility", mobile.accessibility || 0, margin + colW * 3);
+      drawScore("Best Practices", mobile.bestPractices || 0, margin + colW * 4);
+      y += 32;
+
+      // --- Device Comparison Table ---
+      checkPage(40);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(17, 24, 39);
+      doc.text("Mobile vs Desktop", margin, y);
+      y += 7;
+
+      doc.setFillColor(243, 244, 246);
+      doc.rect(margin, y, contentW, 8, "F");
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(107, 114, 128);
+      doc.text("Category", margin + 3, y + 5.5);
+      doc.text("Mobile", margin + contentW * 0.55, y + 5.5);
+      doc.text("Desktop", margin + contentW * 0.78, y + 5.5);
+      y += 10;
+
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(17, 24, 39);
+      for (const row of barData) {
+        doc.setFontSize(9);
+        doc.text(row.category, margin + 3, y + 4);
+        const [mr, mg, mb] = scoreColor(row.mobile);
+        doc.setTextColor(mr, mg, mb);
+        doc.text(String(row.mobile), margin + contentW * 0.55, y + 4);
+        const [dr, dg, db] = scoreColor(row.desktop);
+        doc.setTextColor(dr, dg, db);
+        doc.text(String(row.desktop), margin + contentW * 0.78, y + 4);
+        doc.setTextColor(17, 24, 39);
+        y += 7;
+      }
+      y += 6;
+
+      // --- Core Web Vitals ---
+      const cwvEntries = Object.entries(coreWebVitals);
+      if (cwvEntries.length > 0) {
+        checkPage(30);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Core Web Vitals", margin, y);
+        y += 7;
+
+        doc.setFillColor(243, 244, 246);
+        doc.rect(margin, y, contentW, 8, "F");
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(107, 114, 128);
+        doc.text("Metric", margin + 3, y + 5.5);
+        doc.text("Value", margin + contentW * 0.55, y + 5.5);
+        doc.text("Status", margin + contentW * 0.78, y + 5.5);
+        y += 10;
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(17, 24, 39);
+        for (const [, vital] of cwvEntries as [string, any][]) {
+          checkPage(8);
+          doc.text(vital.title, margin + 3, y + 4);
+          doc.text(vital.displayValue, margin + contentW * 0.55, y + 4);
+          const status = vital.score >= 0.9 ? "Good" : vital.score >= 0.5 ? "Needs Work" : "Poor";
+          const [sr, sg, sb] = scoreColor(vital.score * 100);
+          doc.setTextColor(sr, sg, sb);
+          doc.text(status, margin + contentW * 0.78, y + 4);
+          doc.setTextColor(17, 24, 39);
+          y += 7;
+        }
+        y += 6;
+      }
+
+      // --- Issues & Opportunities ---
+      if (opportunities.length > 0) {
+        checkPage(20);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Opportunities", margin, y);
+        y += 8;
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        for (const opp of opportunities) {
+          checkPage(14);
+          doc.setFont("helvetica", "bold");
+          doc.text(`• ${opp.title}`, margin + 2, y);
+          y += 4;
+          if (opp.savings) {
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(107, 114, 128);
+            doc.text(`  Potential savings: ${opp.savings}`, margin + 4, y);
+            doc.setTextColor(17, 24, 39);
+            y += 5;
+          }
+          doc.setFont("helvetica", "normal");
+        }
+        y += 4;
+      }
+
+      // --- AI Recommendations ---
+      const renderSuggestionSection = (title: string, items: any[]) => {
+        if (!items || items.length === 0) return;
+        checkPage(20);
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(17, 24, 39);
+        doc.text(title, margin, y);
+        y += 7;
+        doc.setFontSize(9);
+        for (const s of items) {
+          checkPage(20);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(17, 24, 39);
+          doc.text(`• ${s.title}`, margin + 2, y);
+          // Impact badge
+          const impactLabel = `${(s.impact || "").toUpperCase()} IMPACT`;
+          const impactX = margin + 4 + doc.getTextWidth(`• ${s.title}`) + 3;
+          if (impactX + doc.getTextWidth(impactLabel) + 4 < W - margin) {
+            const [ir, ig, ib] = s.impact === "high" ? [220, 38, 38] as const : s.impact === "medium" ? [234, 179, 8] as const : [22, 163, 74] as const;
+            doc.setTextColor(ir, ig, ib);
+            doc.text(impactLabel, impactX, y);
+          }
+          y += 5;
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(107, 114, 128);
+          const lines = doc.splitTextToSize(s.description || "", contentW - 6);
+          for (const line of lines) {
+            checkPage(5);
+            doc.text(line, margin + 4, y);
+            y += 4;
+          }
+          y += 3;
+        }
+        y += 4;
+      };
+
+      if (aiSuggestions) {
+        checkPage(20);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(17, 24, 39);
+        doc.text("AI-Generated Optimization Recommendations", margin, y);
+        y += 10;
+        renderSuggestionSection("Performance Fixes", aiSuggestions.performance || []);
+        renderSuggestionSection("SEO Improvements", aiSuggestions.seo || []);
+        renderSuggestionSection("UX & Accessibility Improvements", aiSuggestions.ux || []);
+      }
+
+      // --- Footer on every page ---
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(156, 163, 175);
+        doc.text(`Page ${i} of ${pages}`, W / 2 - 10, 290);
+        doc.text(`Generated ${new Date().toLocaleDateString()}`, margin, 290);
+      }
+
+      const filename = `audit-report-${new URL(report.url).hostname}-${new Date(report.created_at).toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+    } catch (err) {
+      console.error("PDF generation error:", err);
+    } finally {
+      setGenerating(false);
+    }
+  }, [report, results, mobile, desktop, coreWebVitals, barData, opportunities, aiSuggestions]);
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-6xl mx-auto">
