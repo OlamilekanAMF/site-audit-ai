@@ -16,6 +16,7 @@ type ScanReport = {
   status: string;
   overall_score: number | null;
   created_at: string;
+  results: any;
 };
 
 const Dashboard = () => {
