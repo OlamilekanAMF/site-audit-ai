@@ -31,9 +31,9 @@ const Dashboard = () => {
     const fetchReports = async () => {
       const { data, error } = await supabase
         .from("scan_reports")
-        .select("id, url, status, overall_score, created_at")
+        .select("id, url, status, overall_score, created_at, results")
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (data) {
         setReports(data);
