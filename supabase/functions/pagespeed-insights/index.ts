@@ -211,10 +211,22 @@ Deno.serve(async (req) => {
       })
       .filter(Boolean);
 
+    // Extract final screenshot (base64 data URI)
+    const finalScreenshot = audits['final-screenshot']?.details?.data || null;
+
+    // Extract filmstrip thumbnails
+    const filmstripItems = (audits['screenshot-thumbnails']?.details?.items || []).map((item: any) => ({
+      timing: item.timing,
+      timestamp: item.timestamp,
+      data: item.data,
+    }));
+
     const result = {
       success: true,
       url: formattedUrl,
       fetchedAt: new Date().toISOString(),
+      screenshot: finalScreenshot,
+      filmstrip: filmstripItems,
       mobile: {
         performance: Math.round((mobileCategories.performance?.score || 0) * 100),
         seo: Math.round((mobileCategories.seo?.score || 0) * 100),
