@@ -1,1 +1,7 @@
 project_id = "sgeileodvxivpjruozbs"
+
+[functions.firecrawl-scrape]
+verify_jwt = false
+
+[functions.analyze-website]
+verify_jwt = false
