@@ -11,3 +11,12 @@ verify_jwt = false
 
 [functions.ai-suggestions]
 verify_jwt = false
+
+[functions.keyword-research]
+verify_jwt = false
+
+[functions.ranking-opportunities]
+verify_jwt = false
+
+[functions.generate-seo-report]
+verify_jwt = false

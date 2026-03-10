@@ -41,6 +41,42 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_keywords: {
+        Row: {
+          created_at: string
+          difficulty_score: number | null
+          id: string
+          keyword: string
+          opportunity_score: number | null
+          search_intent: string | null
+          suggested_content: string | null
+          topic: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty_score?: number | null
+          id?: string
+          keyword: string
+          opportunity_score?: number | null
+          search_intent?: string | null
+          suggested_content?: string | null
+          topic: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty_score?: number | null
+          id?: string
+          keyword?: string
+          opportunity_score?: number | null
+          search_intent?: string | null
+          suggested_content?: string | null
+          topic?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scan_reports: {
         Row: {
           created_at: string
@@ -74,6 +110,51 @@ export type Database = {
         }
         Relationships: []
       }
+      seo_reports: {
+        Row: {
+          created_at: string
+          id: string
+          report_data: Json | null
+          user_id: string
+          website_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_data?: Json | null
+          user_id: string
+          website_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_data?: Json | null
+          user_id?: string
+          website_url?: string
+        }
+        Relationships: []
+      }
+      tracked_websites: {
+        Row: {
+          created_at: string
+          id: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -88,6 +169,30 @@ export type Database = {
         Update: {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
