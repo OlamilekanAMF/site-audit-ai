@@ -12,9 +12,13 @@ import ResetPassword from "./pages/ResetPassword";
 import Pricing from "./pages/Pricing";
 import DashboardPricing from "./pages/DashboardPricing";
 import Dashboard from "./pages/Dashboard";
+import SEODashboard from "./pages/SEODashboard";
 import Scanner from "./pages/Scanner";
 import Report from "./pages/Report";
 import Reports from "./pages/Reports";
+import KeywordResearch from "./pages/KeywordResearch";
+import RankingOpportunities from "./pages/RankingOpportunities";
+import SEOReports from "./pages/SEOReports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -35,9 +39,13 @@ const App = () => (
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/dashboard/pricing" element={<ProtectedRoute><DashboardPricing /></ProtectedRoute>} />
+              <Route path="/seo-dashboard" element={<ProtectedRoute><SEODashboard /></ProtectedRoute>} />
               <Route path="/scan" element={<ProtectedRoute><Scanner /></ProtectedRoute>} />
               <Route path="/report/:id" element={<ProtectedRoute><Report /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/keywords" element={<ProtectedRoute><KeywordResearch /></ProtectedRoute>} />
+              <Route path="/opportunities" element={<ProtectedRoute><RankingOpportunities /></ProtectedRoute>} />
+              <Route path="/seo-reports" element={<ProtectedRoute><SEOReports /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

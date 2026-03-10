@@ -72,8 +72,8 @@ const SEOReports = () => {
       const scanHistory = scans?.map((s) => ({
         date: new Date(s.created_at).toLocaleDateString(),
         score: s.overall_score,
-        performance: s.results?.mobile?.performance,
-        seo: s.results?.mobile?.seo,
+        performance: (s.results as any)?.mobile?.performance,
+        seo: (s.results as any)?.mobile?.seo,
       }));
 
       const { data, error } = await supabase.functions.invoke("generate-seo-report", {

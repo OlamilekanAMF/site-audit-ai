@@ -62,7 +62,7 @@ const RankingOpportunities = () => {
         .limit(1)
         .single();
 
-      const mobile = scanData?.results?.mobile;
+      const mobile = (scanData?.results as any)?.mobile;
       const { data, error } = await supabase.functions.invoke("ranking-opportunities", {
         body: {
           url: url.trim(),
