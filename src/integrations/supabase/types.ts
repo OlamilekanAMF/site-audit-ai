@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      competitor_comparisons: {
+        Row: {
+          competitor_urls: string[]
+          created_at: string
+          id: string
+          results: Json
+          user_id: string
+          your_url: string
+        }
+        Insert: {
+          competitor_urls: string[]
+          created_at?: string
+          id?: string
+          results: Json
+          user_id: string
+          your_url: string
+        }
+        Update: {
+          competitor_urls?: string[]
+          created_at?: string
+          id?: string
+          results?: Json
+          user_id?: string
+          your_url?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
