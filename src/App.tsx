@@ -19,6 +19,7 @@ import Reports from "./pages/Reports";
 import KeywordResearch from "./pages/KeywordResearch";
 import RankingOpportunities from "./pages/RankingOpportunities";
 import SEOReports from "./pages/SEOReports";
+import CompetitorAnalysis from "./pages/CompetitorAnalysis";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
