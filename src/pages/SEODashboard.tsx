@@ -167,6 +167,7 @@ const SEODashboard = () => {
                 { label: "Keyword Research", desc: "Find keyword opportunities", to: "/keywords", icon: Search, premium: true },
                 { label: "Ranking Opportunities", desc: "Improve your rankings", to: "/opportunities", icon: TrendingUp, premium: true },
                 { label: "SEO Reports", desc: "Monthly performance reports", to: "/seo-reports", icon: FileText, premium: true },
+                { label: "Competitor Analysis", desc: "Compare against competitors", to: "/competitor-analysis", icon: Shield, premium: true },
               ].map((action) => (
                 <Link key={action.to} to={action.to}>
                   <div className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors group">
