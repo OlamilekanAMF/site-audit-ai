@@ -36,6 +36,7 @@ const navItems = [
   { title: "Ranking Opportunities", url: "/opportunities", icon: Trophy, premium: true },
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "SEO Reports", url: "/seo-reports", icon: FileText, premium: true },
+  { title: "Competitor Analysis", url: "/competitor-analysis", icon: Target, premium: true },
   { title: "Billing", url: "/dashboard/pricing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
