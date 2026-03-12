@@ -47,6 +47,7 @@ const App = () => (
               <Route path="/keywords" element={<ProtectedRoute><KeywordResearch /></ProtectedRoute>} />
               <Route path="/opportunities" element={<ProtectedRoute><RankingOpportunities /></ProtectedRoute>} />
               <Route path="/seo-reports" element={<ProtectedRoute><SEOReports /></ProtectedRoute>} />
+              <Route path="/competitor-analysis" element={<ProtectedRoute><CompetitorAnalysis /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
