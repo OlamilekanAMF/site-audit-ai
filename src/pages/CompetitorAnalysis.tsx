@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { PremiumGate } from "@/components/PremiumGate";
@@ -12,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Swords, Plus, X, Loader2, TrendingUp, TrendingDown, Minus, Globe, Zap,
-  Search, Shield, Eye, BarChart3, Lightbulb,
+  Search, Shield, Eye, BarChart3, Lightbulb, Save, Clock, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -27,6 +28,14 @@ type AnalysisResult = {
   yourSite: SiteData;
   competitors: SiteData[];
   insights: string[];
+};
+
+type SavedComparison = {
+  id: string;
+  your_url: string;
+  competitor_urls: string[];
+  results: AnalysisResult;
+  created_at: string;
 };
 
 const METRICS = [
@@ -55,13 +64,33 @@ const DiffBadge = ({ yours, theirs }: { yours: number; theirs: number }) => {
   return <Badge variant="outline" className="text-muted-foreground text-[10px] gap-0.5"><Minus className="h-3 w-3" />0</Badge>;
 };
 
+const shortUrl = (url: string) => url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
 const CompetitorAnalysis = () => {
+  const { user } = useAuth();
   const { isPremium } = useSubscription();
   const { toast } = useToast();
   const [yourUrl, setYourUrl] = useState("");
   const [competitorInputs, setCompetitorInputs] = useState([""]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("competitor_comparisons")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (data) setSavedComparisons(data as unknown as SavedComparison[]);
+        setLoadingHistory(false);
+      });
+  }, [user]);
 
   const addCompetitor = () => {
     if (competitorInputs.length < 4) setCompetitorInputs([...competitorInputs, ""]);
@@ -104,7 +133,41 @@ const CompetitorAnalysis = () => {
     }
   };
 
-  const shortUrl = (url: string) => url.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const handleSave = async () => {
+    if (!result || !user) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.from("competitor_comparisons").insert({
+        user_id: user.id,
+        your_url: result.yourSite.url,
+        competitor_urls: result.competitors.map((c) => c.url),
+        results: result as any,
+      }).select().single();
+
+      if (error) throw error;
+      setSavedComparisons((prev) => [data as unknown as SavedComparison, ...prev]);
+      toast({ title: "Saved", description: "Comparison saved to history." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLoadComparison = (comp: SavedComparison) => {
+    setYourUrl(comp.your_url);
+    setCompetitorInputs(comp.competitor_urls.length ? comp.competitor_urls : [""]);
+    setResult(comp.results);
+    toast({ title: "Loaded", description: "Previous comparison loaded." });
+  };
+
+  const handleDeleteComparison = async (id: string) => {
+    const { error } = await supabase.from("competitor_comparisons").delete().eq("id", id);
+    if (!error) {
+      setSavedComparisons((prev) => prev.filter((c) => c.id !== id));
+      toast({ title: "Deleted", description: "Comparison removed." });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -130,12 +193,7 @@ const CompetitorAnalysis = () => {
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Your Website</label>
                 <div className="flex items-center gap-2">
                   <Globe className="h-4 w-4 text-primary shrink-0" />
-                  <Input
-                    placeholder="yourwebsite.com"
-                    value={yourUrl}
-                    onChange={(e) => setYourUrl(e.target.value)}
-                    disabled={loading}
-                  />
+                  <Input placeholder="yourwebsite.com" value={yourUrl} onChange={(e) => setYourUrl(e.target.value)} disabled={loading} />
                 </div>
               </div>
 
@@ -146,12 +204,7 @@ const CompetitorAnalysis = () => {
                 {competitorInputs.map((val, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <Swords className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Input
-                      placeholder={`competitor${i + 1}.com`}
-                      value={val}
-                      onChange={(e) => updateCompetitor(i, e.target.value)}
-                      disabled={loading}
-                    />
+                    <Input placeholder={`competitor${i + 1}.com`} value={val} onChange={(e) => updateCompetitor(i, e.target.value)} disabled={loading} />
                     {competitorInputs.length > 1 && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeCompetitor(i)} disabled={loading}>
                         <X className="h-3.5 w-3.5" />
@@ -175,6 +228,14 @@ const CompetitorAnalysis = () => {
           {/* Results */}
           {result && (
             <div className="space-y-4">
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleSave} disabled={saving}>
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Save Comparison
+                </Button>
+              </div>
+
               {/* Overview Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[result.yourSite, ...result.competitors].map((site, i) => (
@@ -299,6 +360,63 @@ const CompetitorAnalysis = () => {
               )}
             </div>
           )}
+
+          {/* Saved Comparisons History */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="font-display text-sm flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" /> Comparison History
+              </CardTitle>
+              <CardDescription className="text-xs">Your saved competitor comparisons</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingHistory ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : savedComparisons.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No saved comparisons yet. Run an analysis and save it.</p>
+              ) : (
+                <div className="space-y-2">
+                  {savedComparisons.map((comp) => (
+                    <div
+                      key={comp.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors group"
+                    >
+                      <button
+                        onClick={() => handleLoadComparison(comp)}
+                        className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                      >
+                        <Globe className="h-4 w-4 text-primary shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{shortUrl(comp.your_url)}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            vs {comp.competitor_urls.map(shortUrl).join(", ")}
+                          </p>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`font-display font-bold ${getScoreColor(comp.results?.yourSite?.overallScore || 0)}`}>
+                          {comp.results?.yourSite?.overallScore ?? "—"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(comp.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteComparison(comp.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </PremiumGate>
     </DashboardLayout>
