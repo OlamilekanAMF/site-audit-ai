@@ -108,6 +108,15 @@ const CompetitorAnalysis = () => {
     setCompetitorInputs(copy);
   };
 
+  const runAnalysis = async (yourUrlInput: string, competitorUrlsInput: string[]) => {
+    const { data, error } = await supabase.functions.invoke("competitor-analysis", {
+      body: { yourUrl: yourUrlInput.trim(), competitorUrls: competitorUrlsInput },
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "Analysis failed");
+    return data as AnalysisResult;
+  };
+
   const handleAnalyze = async () => {
     const competitors = competitorInputs.filter((u) => u.trim());
     if (!yourUrl.trim() || !competitors.length) {
@@ -117,21 +126,35 @@ const CompetitorAnalysis = () => {
 
     setLoading(true);
     setResult(null);
+    setPreviousResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("competitor-analysis", {
-        body: { yourUrl: yourUrl.trim(), competitorUrls: competitors },
-      });
-
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Analysis failed");
-
+      const data = await runAnalysis(yourUrl, competitors);
       setResult(data);
       toast({ title: "Analysis Complete", description: `Compared against ${data.competitors.length} competitor(s).` });
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Analysis failed", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRerun = async (comp: SavedComparison) => {
+    setRerunningId(comp.id);
+    setPreviousResult(comp.results);
+    setYourUrl(comp.your_url);
+    setCompetitorInputs(comp.competitor_urls.length ? comp.competitor_urls : [""]);
+    setResult(null);
+
+    try {
+      const data = await runAnalysis(comp.your_url, comp.competitor_urls);
+      setResult(data);
+      toast({ title: "Re-run Complete", description: "Compare new scores with previous results below." });
+    } catch (err: any) {
+      setPreviousResult(null);
+      toast({ title: "Error", description: err.message || "Re-run failed", variant: "destructive" });
+    } finally {
+      setRerunningId(null);
     }
   };
 
