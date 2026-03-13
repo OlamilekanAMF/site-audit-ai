@@ -77,6 +77,8 @@ const CompetitorAnalysis = () => {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [previousResult, setPreviousResult] = useState<AnalysisResult | null>(null);
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
