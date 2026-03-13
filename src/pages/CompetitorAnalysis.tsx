@@ -261,6 +261,16 @@ const CompetitorAnalysis = () => {
                 </Button>
               </div>
 
+              {/* Score Change Banner */}
+              {previousResult && (
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                  <RefreshCw className="h-4 w-4 text-primary shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Re-run results</span> — score changes compared to your previous analysis are shown with ↑↓ arrows.
+                  </p>
+                </div>
+              )}
+
               {/* Overview Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[result.yourSite, ...result.competitors].map((site, i) => (
