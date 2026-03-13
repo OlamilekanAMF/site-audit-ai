@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { PremiumGate } from "@/components/PremiumGate";
+import { CompetitorTrendChart } from "@/components/CompetitorTrendChart";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
