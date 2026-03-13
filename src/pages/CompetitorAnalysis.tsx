@@ -277,6 +277,19 @@ const CompetitorAnalysis = () => {
                         <span className={`font-display text-4xl font-bold ${getScoreColor(site.overallScore || 0)}`}>
                           {site.overallScore ?? "—"}
                         </span>
+                        {previousResult && (() => {
+                          const prevSite = i === 0 ? previousResult.yourSite : previousResult.competitors.find(c => c.url === site.url);
+                          const prevScore = prevSite?.overallScore;
+                          if (prevScore != null && site.overallScore != null) {
+                            const change = site.overallScore - prevScore;
+                            return change !== 0 ? (
+                              <span className={`ml-1.5 text-sm font-bold ${change > 0 ? "text-score-excellent" : "text-score-poor"}`}>
+                                {change > 0 ? `↑${change}` : `↓${Math.abs(change)}`}
+                              </span>
+                            ) : null;
+                          }
+                          return null;
+                        })()}
                         <p className="text-[10px] text-muted-foreground mt-0.5">Overall Score</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
