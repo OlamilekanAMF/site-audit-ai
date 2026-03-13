@@ -9,8 +9,8 @@ type SavedComparison = {
   your_url: string;
   competitor_urls: string[];
   results: {
-    yourSite: { url: string; overallScore: number; mobile?: Record<string, number> | null };
-    competitors: { url: string; overallScore: number; mobile?: Record<string, number> | null }[];
+    yourSite: { url: string; overallScore: number; mobile?: Record<string, any> | null };
+    competitors: { url: string; overallScore: number; mobile?: Record<string, any> | null }[];
   };
   created_at: string;
 };
