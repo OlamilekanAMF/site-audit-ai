@@ -443,6 +443,16 @@ const CompetitorAnalysis = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                          onClick={() => handleRerun(comp)}
+                          disabled={rerunningId === comp.id}
+                          title="Re-run analysis"
+                        >
+                          {rerunningId === comp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                           onClick={() => handleDeleteComparison(comp.id)}
                         >
