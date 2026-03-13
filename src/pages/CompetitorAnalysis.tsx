@@ -410,6 +410,9 @@ const CompetitorAnalysis = () => {
             </div>
           )}
 
+          {/* Score Trends Chart */}
+          <CompetitorTrendChart comparisons={savedComparisons} />
+
           {/* Saved Comparisons History */}
           <Card>
             <CardHeader className="pb-3">
