@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Swords, Plus, X, Loader2, TrendingUp, TrendingDown, Minus, Globe, Zap,
-  Search, Shield, Eye, BarChart3, Lightbulb, Save, Clock, Trash2,
+  Search, Shield, Eye, BarChart3, Lightbulb, Save, Clock, Trash2, RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -77,6 +77,8 @@ const CompetitorAnalysis = () => {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [savedComparisons, setSavedComparisons] = useState<SavedComparison[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [previousResult, setPreviousResult] = useState<AnalysisResult | null>(null);
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -106,6 +108,15 @@ const CompetitorAnalysis = () => {
     setCompetitorInputs(copy);
   };
 
+  const runAnalysis = async (yourUrlInput: string, competitorUrlsInput: string[]) => {
+    const { data, error } = await supabase.functions.invoke("competitor-analysis", {
+      body: { yourUrl: yourUrlInput.trim(), competitorUrls: competitorUrlsInput },
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "Analysis failed");
+    return data as AnalysisResult;
+  };
+
   const handleAnalyze = async () => {
     const competitors = competitorInputs.filter((u) => u.trim());
     if (!yourUrl.trim() || !competitors.length) {
@@ -115,21 +126,35 @@ const CompetitorAnalysis = () => {
 
     setLoading(true);
     setResult(null);
+    setPreviousResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("competitor-analysis", {
-        body: { yourUrl: yourUrl.trim(), competitorUrls: competitors },
-      });
-
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Analysis failed");
-
+      const data = await runAnalysis(yourUrl, competitors);
       setResult(data);
       toast({ title: "Analysis Complete", description: `Compared against ${data.competitors.length} competitor(s).` });
     } catch (err: any) {
       toast({ title: "Error", description: err.message || "Analysis failed", variant: "destructive" });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRerun = async (comp: SavedComparison) => {
+    setRerunningId(comp.id);
+    setPreviousResult(comp.results);
+    setYourUrl(comp.your_url);
+    setCompetitorInputs(comp.competitor_urls.length ? comp.competitor_urls : [""]);
+    setResult(null);
+
+    try {
+      const data = await runAnalysis(comp.your_url, comp.competitor_urls);
+      setResult(data);
+      toast({ title: "Re-run Complete", description: "Compare new scores with previous results below." });
+    } catch (err: any) {
+      setPreviousResult(null);
+      toast({ title: "Error", description: err.message || "Re-run failed", variant: "destructive" });
+    } finally {
+      setRerunningId(null);
     }
   };
 
@@ -236,6 +261,16 @@ const CompetitorAnalysis = () => {
                 </Button>
               </div>
 
+              {/* Score Change Banner */}
+              {previousResult && (
+                <div className="flex items-center gap-2 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                  <RefreshCw className="h-4 w-4 text-primary shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Re-run results</span> — score changes compared to your previous analysis are shown with ↑↓ arrows.
+                  </p>
+                </div>
+              )}
+
               {/* Overview Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[result.yourSite, ...result.competitors].map((site, i) => (
@@ -252,6 +287,19 @@ const CompetitorAnalysis = () => {
                         <span className={`font-display text-4xl font-bold ${getScoreColor(site.overallScore || 0)}`}>
                           {site.overallScore ?? "—"}
                         </span>
+                        {previousResult && (() => {
+                          const prevSite = i === 0 ? previousResult.yourSite : previousResult.competitors.find(c => c.url === site.url);
+                          const prevScore = prevSite?.overallScore;
+                          if (prevScore != null && site.overallScore != null) {
+                            const change = site.overallScore - prevScore;
+                            return change !== 0 ? (
+                              <span className={`ml-1.5 text-sm font-bold ${change > 0 ? "text-score-excellent" : "text-score-poor"}`}>
+                                {change > 0 ? `↑${change}` : `↓${Math.abs(change)}`}
+                              </span>
+                            ) : null;
+                          }
+                          return null;
+                        })()}
                         <p className="text-[10px] text-muted-foreground mt-0.5">Overall Score</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -402,6 +450,16 @@ const CompetitorAnalysis = () => {
                         <span className="text-xs text-muted-foreground">
                           {new Date(comp.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                         </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                          onClick={() => handleRerun(comp)}
+                          disabled={rerunningId === comp.id}
+                          title="Re-run analysis"
+                        >
+                          {rerunningId === comp.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
