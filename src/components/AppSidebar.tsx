@@ -91,13 +91,23 @@ export function AppSidebar() {
                     >
                       <item.icon className="mr-2 h-4 w-4" />
                       {!collapsed && (
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1.5 flex-1">
                           {item.title}
                           {item.premium && (
                             <Badge variant="secondary" className="text-[8px] py-0 px-1 leading-tight bg-sidebar-accent text-sidebar-primary">
                               PRO
                             </Badge>
                           )}
+                          {item.url === "/competitor-alerts" && unreadAlerts > 0 && (
+                            <Badge className="ml-auto text-[9px] py-0 px-1.5 leading-tight bg-primary text-primary-foreground">
+                              {unreadAlerts > 99 ? "99+" : unreadAlerts}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
+                      {collapsed && item.url === "/competitor-alerts" && unreadAlerts > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
+                          {unreadAlerts > 9 ? "9+" : unreadAlerts}
                         </span>
                       )}
                     </NavLink>
