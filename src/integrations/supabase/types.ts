@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      competitor_alerts: {
+        Row: {
+          comparison_id: string | null
+          created_at: string
+          diff: number
+          id: string
+          metric: string
+          new_score: number
+          old_score: number
+          read: boolean
+          site_url: string
+          user_id: string
+        }
+        Insert: {
+          comparison_id?: string | null
+          created_at?: string
+          diff: number
+          id?: string
+          metric: string
+          new_score: number
+          old_score: number
+          read?: boolean
+          site_url: string
+          user_id: string
+        }
+        Update: {
+          comparison_id?: string | null
+          created_at?: string
+          diff?: number
+          id?: string
+          metric?: string
+          new_score?: number
+          old_score?: number
+          read?: boolean
+          site_url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_alerts_comparison_id_fkey"
+            columns: ["comparison_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_comparisons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitor_comparisons: {
         Row: {
           competitor_urls: string[]
