@@ -20,6 +20,7 @@ import KeywordResearch from "./pages/KeywordResearch";
 import RankingOpportunities from "./pages/RankingOpportunities";
 import SEOReports from "./pages/SEOReports";
 import CompetitorAnalysis from "./pages/CompetitorAnalysis";
+import CompetitorAlerts from "./pages/CompetitorAlerts";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
