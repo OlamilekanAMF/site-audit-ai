@@ -20,6 +20,7 @@ import KeywordResearch from "./pages/KeywordResearch";
 import RankingOpportunities from "./pages/RankingOpportunities";
 import SEOReports from "./pages/SEOReports";
 import CompetitorAnalysis from "./pages/CompetitorAnalysis";
+import CompetitorAlerts from "./pages/CompetitorAlerts";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/opportunities" element={<ProtectedRoute><RankingOpportunities /></ProtectedRoute>} />
               <Route path="/seo-reports" element={<ProtectedRoute><SEOReports /></ProtectedRoute>} />
               <Route path="/competitor-analysis" element={<ProtectedRoute><CompetitorAnalysis /></ProtectedRoute>} />
+              <Route path="/competitor-alerts" element={<ProtectedRoute><CompetitorAlerts /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

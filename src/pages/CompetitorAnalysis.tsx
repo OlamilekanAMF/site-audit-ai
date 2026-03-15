@@ -182,6 +182,20 @@ const CompetitorAnalysis = () => {
 
       const alerts = detectSignificantChanges(comp.results, data);
       if (alerts.length > 0) {
+        // Persist alerts to DB
+        if (user) {
+          const rows = alerts.map((a) => ({
+            user_id: user.id,
+            site_url: a.url,
+            metric: a.metric,
+            old_score: a.oldScore,
+            new_score: a.newScore,
+            diff: a.diff,
+            comparison_id: comp.id,
+          }));
+          supabase.from("competitor_alerts").insert(rows).then(() => {});
+        }
+
         alerts.slice(0, 3).forEach((a) => {
           const direction = a.diff > 0 ? "improved" : "dropped";
           const icon = a.diff > 0 ? "🟢" : "🔴";

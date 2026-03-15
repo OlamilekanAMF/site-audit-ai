@@ -9,6 +9,7 @@ import {
   Target,
   Trophy,
   BarChart3,
+  Bell,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -37,6 +38,7 @@ const navItems = [
   { title: "Reports", url: "/reports", icon: FileText },
   { title: "SEO Reports", url: "/seo-reports", icon: FileText, premium: true },
   { title: "Competitor Analysis", url: "/competitor-analysis", icon: Target, premium: true },
+  { title: "Score Alerts", url: "/competitor-alerts", icon: Bell, premium: true },
   { title: "Billing", url: "/dashboard/pricing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
