@@ -140,6 +140,35 @@ const CompetitorAnalysis = () => {
     }
   };
 
+  const detectSignificantChanges = (prev: AnalysisResult, curr: AnalysisResult) => {
+    const threshold = 10;
+    const alerts: { url: string; metric: string; oldScore: number; newScore: number; diff: number }[] = [];
+    const allPrev = [prev.yourSite, ...prev.competitors];
+    const allCurr = [curr.yourSite, ...curr.competitors];
+
+    for (const currSite of allCurr) {
+      const prevSite = allPrev.find((s) => s.url === currSite.url);
+      if (!prevSite) continue;
+
+      // Check overall
+      if (currSite.overallScore != null && prevSite.overallScore != null) {
+        const diff = currSite.overallScore - prevSite.overallScore;
+        if (Math.abs(diff) >= threshold) alerts.push({ url: currSite.url, metric: "Overall", oldScore: prevSite.overallScore, newScore: currSite.overallScore, diff });
+      }
+
+      // Check category scores
+      for (const m of METRICS) {
+        const oldVal = (prevSite.mobile as any)?.[m.key] as number | undefined;
+        const newVal = (currSite.mobile as any)?.[m.key] as number | undefined;
+        if (oldVal != null && newVal != null) {
+          const diff = newVal - oldVal;
+          if (Math.abs(diff) >= threshold) alerts.push({ url: currSite.url, metric: m.label, oldScore: oldVal, newScore: newVal, diff });
+        }
+      }
+    }
+    return alerts;
+  };
+
   const handleRerun = async (comp: SavedComparison) => {
     setRerunningId(comp.id);
     setPreviousResult(comp.results);
@@ -150,7 +179,24 @@ const CompetitorAnalysis = () => {
     try {
       const data = await runAnalysis(comp.your_url, comp.competitor_urls);
       setResult(data);
-      toast({ title: "Re-run Complete", description: "Compare new scores with previous results below." });
+
+      const alerts = detectSignificantChanges(comp.results, data);
+      if (alerts.length > 0) {
+        alerts.slice(0, 3).forEach((a) => {
+          const direction = a.diff > 0 ? "improved" : "dropped";
+          const icon = a.diff > 0 ? "🟢" : "🔴";
+          toast({
+            title: `${icon} ${shortUrl(a.url)} — ${a.metric} ${direction}`,
+            description: `Score went from ${a.oldScore} → ${a.newScore} (${a.diff > 0 ? "+" : ""}${a.diff} pts)`,
+            variant: a.diff < 0 ? "destructive" : "default",
+          });
+        });
+        if (alerts.length > 3) {
+          toast({ title: `⚠️ ${alerts.length - 3} more significant changes`, description: "Check the comparison details below." });
+        }
+      } else {
+        toast({ title: "Re-run Complete", description: "No significant score changes detected (±10 pts)." });
+      }
     } catch (err: any) {
       setPreviousResult(null);
       toast({ title: "Error", description: err.message || "Re-run failed", variant: "destructive" });
