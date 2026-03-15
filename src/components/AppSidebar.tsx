@@ -49,7 +49,20 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("competitor_alerts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("read", false)
+      .then(({ count }) => {
+        if (count != null) setUnreadAlerts(count);
+      });
+  }, [user, location.pathname]);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
