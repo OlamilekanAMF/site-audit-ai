@@ -1,4 +1,7 @@
-# Welcome to your Lovable project
+
+<img width="1536" height="1024" alt="ChatGPT Image Mar 10, 2026, 07_44_54 AM" src="https://github.com/user-attachments/assets/7b294f97-55e2-4d50-b7a1-6d82537fbeb4" />
+
+# Welcome to your SITE DOCTOR AI project
 
 ## Project info
 
