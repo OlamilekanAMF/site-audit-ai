@@ -125,6 +125,7 @@ const HeroParticles = () => {
       const particles = particlesRef.current;
       const palette = paletteRef.current;
       const glow = glowRef.current;
+      const scrollY = scrollOffsetRef.current * 0.3; // parallax factor
 
       // Cursor glow
       if (mx > 0 && my > 0) {
