@@ -42,11 +42,21 @@ const DARK_PALETTE: ColorPalette = {
 const HeroParticles = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
+  const scrollOffsetRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const animFrameRef = useRef<number>(0);
   const paletteRef = useRef<ColorPalette>(LIGHT_PALETTE);
   const glowRef = useRef({ c1: LIGHT_PALETTE.glow[0], c2: LIGHT_PALETTE.glow[1] });
   const { resolvedTheme } = useTheme();
+
+  // Parallax scroll listener
+  useEffect(() => {
+    const handleScroll = () => {
+      scrollOffsetRef.current = window.scrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const getTargetColor = useCallback((x: number, y: number, w: number, h: number, palette: ColorPalette) => {
     const nx = x / w;
@@ -115,6 +125,7 @@ const HeroParticles = () => {
       const particles = particlesRef.current;
       const palette = paletteRef.current;
       const glow = glowRef.current;
+      const scrollY = scrollOffsetRef.current * 0.3; // parallax factor
 
       // Cursor glow
       if (mx > 0 && my > 0) {
@@ -158,23 +169,28 @@ const HeroParticles = () => {
         p.g = Math.round(lerp(p.g, p.targetG, colorLerp));
         p.b = Math.round(lerp(p.b, p.targetB, colorLerp));
 
-        // Draw particle
+        // Draw particle with parallax offset
+        const drawX = p.x;
+        const drawY = p.y - scrollY;
+
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.arc(drawX, drawY, p.radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.alpha})`;
         ctx.fill();
 
         // Connections
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
-          const cdx = p.x - p2.x;
-          const cdy = p.y - p2.y;
+          const p2DrawX = p2.x;
+          const p2DrawY = p2.y - scrollY;
+          const cdx = drawX - p2DrawX;
+          const cdy = drawY - p2DrawY;
           const cdist = Math.sqrt(cdx * cdx + cdy * cdy);
           if (cdist < 120) {
             const opacity = (1 - cdist / 120) * 0.15;
             ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
+            ctx.moveTo(drawX, drawY);
+            ctx.lineTo(p2DrawX, p2DrawY);
             ctx.strokeStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${opacity})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
