@@ -1,32 +1,69 @@
 import { useEffect, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
+
+interface Particle {
+  x: number;
+  y: number;
+  baseX: number;
+  baseY: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  r: number;
+  g: number;
+  b: number;
+  targetR: number;
+  targetG: number;
+  targetB: number;
+  alpha: number;
+}
+
+type ColorPalette = {
+  base: [number, number, number];
+  xShift: [number, number, number];
+  yShift: [number, number, number];
+  glow: [string, string];
+};
+
+const LIGHT_PALETTE: ColorPalette = {
+  base: [30, 80, 180],
+  xShift: [60, 30, 75],
+  yShift: [40, 140, -40],
+  glow: ["hsla(220, 70%, 55%, 0.12)", "hsla(165, 70%, 45%, 0.06)"],
+};
+
+const DARK_PALETTE: ColorPalette = {
+  base: [80, 160, 255],
+  xShift: [80, -40, -30],
+  yShift: [-20, 60, 100],
+  glow: ["hsla(220, 80%, 65%, 0.18)", "hsla(280, 60%, 60%, 0.08)"],
+};
 
 const HeroParticles = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
   const particlesRef = useRef<Particle[]>([]);
   const animFrameRef = useRef<number>(0);
+  const paletteRef = useRef<ColorPalette>(LIGHT_PALETTE);
+  const glowRef = useRef({ c1: LIGHT_PALETTE.glow[0], c2: LIGHT_PALETTE.glow[1] });
+  const { resolvedTheme } = useTheme();
 
-  interface Particle {
-    x: number;
-    y: number;
-    baseX: number;
-    baseY: number;
-    vx: number;
-    vy: number;
-    radius: number;
-    color: string;
-    alpha: number;
-  }
-
-  const getGradientColor = useCallback((x: number, y: number, w: number, h: number) => {
+  const getTargetColor = useCallback((x: number, y: number, w: number, h: number, palette: ColorPalette) => {
     const nx = x / w;
     const ny = y / h;
-    // Primary blue → accent teal → purple
-    const r = Math.floor(30 + nx * 60 + ny * 40);
-    const g = Math.floor(80 + ny * 140 + nx * 30);
-    const b = Math.floor(180 + nx * 75 - ny * 40);
-    return `${r}, ${g}, ${b}`;
+    return {
+      r: Math.floor(palette.base[0] + nx * palette.xShift[0] + ny * palette.yShift[0]),
+      g: Math.floor(palette.base[1] + nx * palette.xShift[1] + ny * palette.yShift[1]),
+      b: Math.floor(palette.base[2] + nx * palette.xShift[2] + ny * palette.yShift[2]),
+    };
   }, []);
+
+  // Smoothly transition palette when theme changes
+  useEffect(() => {
+    paletteRef.current = resolvedTheme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
+    const target = paletteRef.current;
+    glowRef.current = { c1: target.glow[0], c2: target.glow[1] };
+  }, [resolvedTheme]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -42,28 +79,29 @@ const HeroParticles = () => {
       canvas.height = parent.offsetHeight * dpr;
       canvas.style.width = `${parent.offsetWidth}px`;
       canvas.style.height = `${parent.offsetHeight}px`;
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       initParticles(parent.offsetWidth, parent.offsetHeight);
     };
 
     const initParticles = (w: number, h: number) => {
       const count = Math.min(Math.floor((w * h) / 4000), 120);
+      const palette = paletteRef.current;
       particlesRef.current = Array.from({ length: count }, () => {
         const x = Math.random() * w;
         const y = Math.random() * h;
+        const { r, g, b } = getTargetColor(x, y, w, h, palette);
         return {
-          x,
-          y,
-          baseX: x,
-          baseY: y,
+          x, y, baseX: x, baseY: y,
           vx: (Math.random() - 0.5) * 0.3,
           vy: (Math.random() - 0.5) * 0.3,
           radius: Math.random() * 2.5 + 1,
-          color: getGradientColor(x, y, w, h),
+          r, g, b, targetR: r, targetG: g, targetB: b,
           alpha: Math.random() * 0.5 + 0.3,
         };
       });
     };
+
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
     const animate = () => {
       const parent = canvas.parentElement;
@@ -75,53 +113,58 @@ const HeroParticles = () => {
       const mx = mouseRef.current.x;
       const my = mouseRef.current.y;
       const particles = particlesRef.current;
+      const palette = paletteRef.current;
+      const glow = glowRef.current;
 
-      // Draw gradient glow following cursor
+      // Cursor glow
       if (mx > 0 && my > 0) {
         const grad = ctx.createRadialGradient(mx, my, 0, mx, my, 250);
-        grad.addColorStop(0, "hsla(220, 70%, 55%, 0.12)");
-        grad.addColorStop(0.4, "hsla(165, 70%, 45%, 0.06)");
+        grad.addColorStop(0, glow.c1);
+        grad.addColorStop(0.4, glow.c2);
         grad.addColorStop(1, "transparent");
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
       }
 
+      const colorLerp = 0.04; // smooth transition speed
+
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
-        // Mouse repulsion / attraction
+        // Mouse interaction
         const dx = mx - p.x;
         const dy = my - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const maxDist = 180;
-
-        if (dist < maxDist && dist > 0) {
-          const force = (1 - dist / maxDist) * 2;
+        if (dist < 180 && dist > 0) {
+          const force = (1 - dist / 180) * 2;
           p.vx += (dx / dist) * force * 0.08;
           p.vy += (dy / dist) * force * 0.08;
         }
 
-        // Spring back to base position
+        // Spring + damping
         p.vx += (p.baseX - p.x) * 0.008;
         p.vy += (p.baseY - p.y) * 0.008;
-
-        // Damping
         p.vx *= 0.96;
         p.vy *= 0.96;
-
         p.x += p.vx;
         p.y += p.vy;
 
-        // Update color based on position
-        p.color = getGradientColor(p.x, p.y, w, h);
+        // Compute target color from current palette and lerp toward it
+        const target = getTargetColor(p.x, p.y, w, h, palette);
+        p.targetR = target.r;
+        p.targetG = target.g;
+        p.targetB = target.b;
+        p.r = Math.round(lerp(p.r, p.targetR, colorLerp));
+        p.g = Math.round(lerp(p.g, p.targetG, colorLerp));
+        p.b = Math.round(lerp(p.b, p.targetB, colorLerp));
 
         // Draw particle
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${p.color}, ${p.alpha})`;
+        ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.alpha})`;
         ctx.fill();
 
-        // Draw connections
+        // Connections
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const cdx = p.x - p2.x;
@@ -132,7 +175,7 @@ const HeroParticles = () => {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(${p.color}, ${opacity})`;
+            ctx.strokeStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${opacity})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
           }
@@ -144,12 +187,8 @@ const HeroParticles = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
-      mouseRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
-
     const handleMouseLeave = () => {
       mouseRef.current = { x: 0, y: 0 };
     };
@@ -167,7 +206,7 @@ const HeroParticles = () => {
       canvas.removeEventListener("mouseleave", handleMouseLeave);
       window.removeEventListener("resize", resize);
     };
-  }, [getGradientColor]);
+  }, [getTargetColor]);
 
   return (
     <canvas
