@@ -254,6 +254,17 @@ const Index = () => {
             </div>
             <p className="mt-6 text-sm text-muted-foreground">No credit card required · Free forever plan</p>
           </motion.div>
+
+          {/* AI Robot */}
+          <motion.div
+            className="flex-shrink-0"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
+          >
+            <HeroRobot />
+          </motion.div>
+          </div>
         </div>
       </section>
 
