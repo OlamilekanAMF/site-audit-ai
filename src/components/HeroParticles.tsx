@@ -42,11 +42,21 @@ const DARK_PALETTE: ColorPalette = {
 const HeroParticles = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0 });
+  const scrollOffsetRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const animFrameRef = useRef<number>(0);
   const paletteRef = useRef<ColorPalette>(LIGHT_PALETTE);
   const glowRef = useRef({ c1: LIGHT_PALETTE.glow[0], c2: LIGHT_PALETTE.glow[1] });
   const { resolvedTheme } = useTheme();
+
+  // Parallax scroll listener
+  useEffect(() => {
+    const handleScroll = () => {
+      scrollOffsetRef.current = window.scrollY;
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const getTargetColor = useCallback((x: number, y: number, w: number, h: number, palette: ColorPalette) => {
     const nx = x / w;
