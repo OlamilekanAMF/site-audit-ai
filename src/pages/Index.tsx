@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import HeroParticles from "@/components/HeroParticles";
+import HeroRobot from "@/components/HeroRobot";
 import { useTheme } from "next-themes";
 import {
   Stethoscope,
@@ -217,12 +218,14 @@ const Index = () => {
         <HeroParticles />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/6 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="container mx-auto px-4 text-center relative pointer-events-none">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-          >
+        <div className="container mx-auto px-4 relative pointer-events-none">
+          <div className="flex flex-col lg:flex-row items-center justify-center gap-8 lg:gap-16">
+            <motion.div
+              className="text-center lg:text-left flex-1"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+            >
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground mb-8">
               <Zap className="h-3.5 w-3.5 text-accent" />
               AI-Powered Website Audits — Trusted by 10,000+ developers
@@ -251,6 +254,17 @@ const Index = () => {
             </div>
             <p className="mt-6 text-sm text-muted-foreground">No credit card required · Free forever plan</p>
           </motion.div>
+
+          {/* AI Robot */}
+          <motion.div
+            className="flex-shrink-0"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.3, type: "spring" }}
+          >
+            <HeroRobot />
+          </motion.div>
+          </div>
         </div>
       </section>
 
