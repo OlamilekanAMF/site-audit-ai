@@ -237,7 +237,7 @@ const Index = () => {
             <p className="mx-auto max-w-2xl text-lg lg:text-xl text-muted-foreground mb-10">
               Scan any website and get detailed performance insights and AI-powered optimization suggestions.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pointer-events-auto">
               <Link to="/login">
                 <Button size="lg" className="gap-2 text-base h-12 px-8">
                   Start Free Website Scan <ArrowRight className="h-4 w-4" />
