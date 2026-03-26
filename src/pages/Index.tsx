@@ -214,9 +214,10 @@ const Index = () => {
 
       {/* Hero */}
       <section className="relative overflow-hidden py-28 lg:py-40">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/6" />
+        <HeroParticles />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-accent/6 pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="container mx-auto px-4 text-center relative">
+        <div className="container mx-auto px-4 text-center relative pointer-events-none">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
