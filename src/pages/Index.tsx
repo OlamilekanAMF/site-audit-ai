@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { motion } from "framer-motion";
 import HeroParticles from "@/components/HeroParticles";
+import HeroRobot from "@/components/HeroRobot";
 import { useTheme } from "next-themes";
 import {
   Stethoscope,
