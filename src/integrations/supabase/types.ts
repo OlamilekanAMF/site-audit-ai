@@ -88,6 +88,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_transactions: {
+        Row: {
+          amount: number
+          billing_type: string
+          created_at: string
+          currency: string
+          id: string
+          paystack_data: Json | null
+          reference: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          billing_type: string
+          created_at?: string
+          currency?: string
+          id?: string
+          paystack_data?: Json | null
+          reference: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          billing_type?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          paystack_data?: Json | null
+          reference?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -249,22 +288,37 @@ export type Database = {
       }
       user_subscriptions: {
         Row: {
+          billing_type: string | null
           created_at: string
+          current_period_end: string | null
           id: string
+          paystack_customer_code: string | null
+          paystack_email_token: string | null
+          paystack_subscription_code: string | null
           plan: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          billing_type?: string | null
           created_at?: string
+          current_period_end?: string | null
           id?: string
+          paystack_customer_code?: string | null
+          paystack_email_token?: string | null
+          paystack_subscription_code?: string | null
           plan?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          billing_type?: string | null
           created_at?: string
+          current_period_end?: string | null
           id?: string
+          paystack_customer_code?: string | null
+          paystack_email_token?: string | null
+          paystack_subscription_code?: string | null
           plan?: string
           updated_at?: string
           user_id?: string
