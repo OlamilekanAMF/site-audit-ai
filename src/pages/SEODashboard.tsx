@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Activity, Target, TrendingUp, Search, FileText, ArrowRight, Zap, Shield, Globe, Crown,
+  CheckCircle2, XCircle, CalendarClock, Repeat,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
@@ -23,7 +24,7 @@ const chartConfig = {
 
 const SEODashboard = () => {
   const { user } = useAuth();
-  const { isPremium, scansThisMonth, scansRemaining, FREE_SCAN_LIMIT } = useSubscription();
+  const { isPremium, scansThisMonth, scansRemaining, FREE_SCAN_LIMIT, subscription } = useSubscription();
   const navigate = useNavigate();
   const [reports, setReports] = useState<any[]>([]);
   const [seoReportCount, setSeoReportCount] = useState(0);
@@ -100,6 +101,65 @@ const SEODashboard = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Subscription Status (premium users) */}
+        {isPremium && (() => {
+          const { status, billingType, currentPeriodEnd } = subscription;
+          const statusMeta = ({
+            active: { label: "Active", icon: CheckCircle2, badge: "default" as const, color: "text-score-excellent", bg: "bg-score-excellent/10" },
+            canceled: { label: "Canceled", icon: XCircle, badge: "secondary" as const, color: "text-score-average", bg: "bg-score-average/10" },
+            expired: { label: "Expired", icon: XCircle, badge: "destructive" as const, color: "text-score-poor", bg: "bg-score-poor/10" },
+            free: { label: "Free", icon: Zap, badge: "secondary" as const, color: "text-muted-foreground", bg: "bg-muted" },
+          })[status];
+          const StatusIcon = statusMeta.icon;
+          const BillIcon = billingType === "subscription" ? Repeat : Zap;
+          const billLabel = billingType === "subscription" ? "Monthly subscription" : billingType === "one_time" ? "One-time payment" : "Premium";
+          const renewDate = currentPeriodEnd ? new Date(currentPeriodEnd) : null;
+          const renewLabel = renewDate
+            ? renewDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : null;
+
+          return (
+            <Card className="border-primary/20">
+              <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`h-9 w-9 rounded-lg ${statusMeta.bg} flex items-center justify-center`}>
+                    <StatusIcon className={`h-4 w-4 ${statusMeta.color}`} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">Premium Plan</p>
+                      <Badge variant={statusMeta.badge} className="text-[10px] py-0">{statusMeta.label}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                      <BillIcon className="h-3 w-3" /> {billLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {renewLabel && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div>
+                        <p className="text-muted-foreground">
+                          {status === "canceled" || status === "expired"
+                            ? "Access ends"
+                            : billingType === "subscription"
+                            ? "Next billing"
+                            : "Renews"}
+                        </p>
+                        <p className="font-medium">{renewLabel}</p>
+                      </div>
+                    </div>
+                  )}
+                  <Link to="/dashboard/pricing">
+                    <Button variant="outline" size="sm">Manage</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
