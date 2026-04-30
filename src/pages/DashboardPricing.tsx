@@ -1,34 +1,84 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { CheckCircle, XCircle, Crown, Loader2 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "react-router-dom";
 
 const DashboardPricing = () => {
   const { plan, isPremium } = useSubscription();
   const { user } = useAuth();
   const { toast } = useToast();
   const [upgrading, setUpgrading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [billingType, setBillingType] = useState<"one_time" | "subscription">("subscription");
+  const [verifying, setVerifying] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const handleUpgrade = async () => {
+  // Verify Paystack redirect
+  useEffect(() => {
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+    if (!reference) return;
+    setVerifying(true);
+    supabase.functions
+      .invoke("paystack-verify", { body: { reference } })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (data?.status === "success") {
+          toast({ title: "Payment successful!", description: "Welcome to Premium." });
+          setTimeout(() => window.location.replace("/dashboard/pricing"), 1200);
+        } else {
+          toast({
+            title: "Payment not completed",
+            description: `Status: ${data?.status || "unknown"}`,
+            variant: "destructive",
+          });
+        }
+      })
+      .catch((err) => {
+        toast({ title: "Verification failed", description: err.message, variant: "destructive" });
+      })
+      .finally(() => {
+        setVerifying(false);
+        const next = new URLSearchParams(searchParams);
+        next.delete("reference");
+        next.delete("trxref");
+        next.delete("paystack");
+        setSearchParams(next, { replace: true });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startCheckout = async () => {
     if (!user) return;
     setUpgrading(true);
     try {
-      const { error } = await supabase
-        .from("user_subscriptions")
-        .update({ plan: "premium" })
-        .eq("user_id", user.id);
+      const { data, error } = await supabase.functions.invoke("paystack-initialize", {
+        body: {
+          billing_type: billingType,
+          callback_url: `${window.location.origin}/dashboard/pricing`,
+        },
+      });
       if (error) throw error;
-      toast({ title: "Upgraded to Premium!", description: "You now have access to all features. Refresh to see changes." });
-      window.location.reload();
+      if (!data?.authorization_url) throw new Error("No checkout URL returned");
+      window.location.href = data.authorization_url;
     } catch (err: any) {
-      toast({ title: "Failed", description: err.message, variant: "destructive" });
-    } finally {
+      toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
       setUpgrading(false);
     }
   };
@@ -39,10 +89,10 @@ const DashboardPricing = () => {
     try {
       const { error } = await supabase
         .from("user_subscriptions")
-        .update({ plan: "free" })
+        .update({ plan: "free", billing_type: null })
         .eq("user_id", user.id);
       if (error) throw error;
-      toast({ title: "Downgraded to Free", description: "Your plan has been changed. Refresh to see changes." });
+      toast({ title: "Downgraded to Free", description: "Your plan has been changed." });
       window.location.reload();
     } catch (err: any) {
       toast({ title: "Failed", description: err.message, variant: "destructive" });
@@ -114,9 +164,19 @@ const DashboardPricing = () => {
         <div>
           <h1 className="font-display text-2xl font-bold">Billing & Plans</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Choose the plan that fits your needs. Currently on: <Badge variant="secondary" className="ml-1 capitalize">{plan}</Badge>
+            Choose the plan that fits your needs. Currently on:{" "}
+            <Badge variant="secondary" className="ml-1 capitalize">{plan}</Badge>
           </p>
         </div>
+
+        {verifying && (
+          <Card className="border-primary/30">
+            <CardContent className="p-4 flex items-center gap-3">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm">Verifying your payment with Paystack…</span>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid md:grid-cols-3 gap-6">
           {plans.map((p) => (
@@ -164,8 +224,12 @@ const DashboardPricing = () => {
                     {upgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Downgrade"}
                   </Button>
                 ) : p.name === "Premium" && !isPremium ? (
-                  <Button className="w-full gap-2" onClick={handleUpgrade} disabled={upgrading}>
-                    {upgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Crown className="h-4 w-4" /> Upgrade to Premium</>}
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => setCheckoutOpen(true)}
+                    disabled={upgrading}
+                  >
+                    <Crown className="h-4 w-4" /> Upgrade to Premium
                   </Button>
                 ) : p.name === "Enterprise" ? (
                   <Button className="w-full" variant="outline">Contact Sales</Button>
@@ -177,6 +241,63 @@ const DashboardPricing = () => {
           ))}
         </div>
       </div>
+
+      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose how you want to pay</DialogTitle>
+            <DialogDescription>
+              Secure checkout powered by Paystack. You'll be redirected to complete your payment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <RadioGroup
+            value={billingType}
+            onValueChange={(v) => setBillingType(v as "one_time" | "subscription")}
+            className="space-y-3"
+          >
+            <Label
+              htmlFor="opt-sub"
+              className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:border-primary"
+            >
+              <RadioGroupItem value="subscription" id="opt-sub" className="mt-1" />
+              <div className="flex-1">
+                <div className="font-medium">Monthly subscription · $29/mo</div>
+                <p className="text-sm text-muted-foreground">
+                  Auto-renews each month. Cancel anytime.
+                </p>
+              </div>
+            </Label>
+            <Label
+              htmlFor="opt-once"
+              className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:border-primary"
+            >
+              <RadioGroupItem value="one_time" id="opt-once" className="mt-1" />
+              <div className="flex-1">
+                <div className="font-medium">One-time payment · $29</div>
+                <p className="text-sm text-muted-foreground">
+                  30 days of Premium access. No automatic renewal.
+                </p>
+              </div>
+            </Label>
+          </RadioGroup>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCheckoutOpen(false)} disabled={upgrading}>
+              Cancel
+            </Button>
+            <Button onClick={startCheckout} disabled={upgrading} className="gap-2">
+              {upgrading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Crown className="h-4 w-4" /> Continue to Paystack
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
