@@ -10,9 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Crown, Loader2 } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Crown,
+  Loader2,
+  Repeat,
+  Zap,
+  AlertTriangle,
+  ShieldCheck,
+} from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/contexts/AuthContext";
