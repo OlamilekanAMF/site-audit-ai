@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Activity, Target, TrendingUp, Search, FileText, ArrowRight, Zap, Shield, Globe, Crown,
+  CheckCircle2, XCircle, CalendarClock, Repeat,
 } from "lucide-react";
 import {
   ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig,
