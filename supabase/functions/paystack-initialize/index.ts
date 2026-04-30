@@ -1,0 +1,120 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const PREMIUM_AMOUNT_USD = 29; // $29
+const PLAN_CODE = Deno.env.get("PAYSTACK_PLAN_CODE") || ""; // optional, used for subscriptions
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!PAYSTACK_SECRET_KEY) throw new Error("PAYSTACK_SECRET_KEY not configured");
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = claimsData.claims.sub as string;
+    const email = (claimsData.claims.email as string) || "";
+
+    const body = await req.json().catch(() => ({}));
+    const billingType: "one_time" | "subscription" =
+      body?.billing_type === "subscription" ? "subscription" : "one_time";
+
+    const callbackUrl = body?.callback_url || `${req.headers.get("origin") || ""}/dashboard/pricing?paystack=success`;
+
+    // Paystack expects amounts in the smallest currency unit (cents for USD)
+    const amount = PREMIUM_AMOUNT_USD * 100;
+    const reference = `sd_${userId.slice(0, 8)}_${Date.now()}`;
+
+    const payload: Record<string, unknown> = {
+      email,
+      amount,
+      currency: "USD",
+      reference,
+      callback_url: callbackUrl,
+      metadata: {
+        user_id: userId,
+        billing_type: billingType,
+      },
+    };
+
+    if (billingType === "subscription" && PLAN_CODE) {
+      payload.plan = PLAN_CODE;
+    }
+
+    const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const psData = await psRes.json();
+    if (!psRes.ok || !psData?.status) {
+      console.error("Paystack init failed:", psData);
+      return new Response(
+        JSON.stringify({ error: psData?.message || "Failed to initialize payment" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Use service role to insert transaction record
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    await adminClient.from("payment_transactions").insert({
+      user_id: userId,
+      reference,
+      amount,
+      currency: "USD",
+      status: "pending",
+      billing_type: billingType,
+      paystack_data: psData.data,
+    });
+
+    return new Response(
+      JSON.stringify({
+        authorization_url: psData.data.authorization_url,
+        access_code: psData.data.access_code,
+        reference,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("paystack-initialize error:", message);
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
