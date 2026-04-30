@@ -24,7 +24,7 @@ const chartConfig = {
 
 const SEODashboard = () => {
   const { user } = useAuth();
-  const { isPremium, scansThisMonth, scansRemaining, FREE_SCAN_LIMIT } = useSubscription();
+  const { isPremium, scansThisMonth, scansRemaining, FREE_SCAN_LIMIT, subscription } = useSubscription();
   const navigate = useNavigate();
   const [reports, setReports] = useState<any[]>([]);
   const [seoReportCount, setSeoReportCount] = useState(0);
