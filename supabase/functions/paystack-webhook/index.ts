@@ -1,0 +1,100 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createHmac } from "node:crypto";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-paystack-signature",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (!PAYSTACK_SECRET_KEY) {
+    return new Response("Server misconfigured", { status: 500, headers: corsHeaders });
+  }
+
+  const raw = await req.text();
+  const signature = req.headers.get("x-paystack-signature") || "";
+  const expected = createHmac("sha512", PAYSTACK_SECRET_KEY).update(raw).digest("hex");
+
+  if (signature !== expected) {
+    console.warn("Invalid paystack signature");
+    return new Response("Invalid signature", { status: 401, headers: corsHeaders });
+  }
+
+  let event: any;
+  try {
+    event = JSON.parse(raw);
+  } catch {
+    return new Response("Bad JSON", { status: 400, headers: corsHeaders });
+  }
+
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const data = event.data || {};
+  const userId = data?.metadata?.user_id || null;
+
+  try {
+    switch (event.event) {
+      case "charge.success": {
+        if (data.reference) {
+          await admin
+            .from("payment_transactions")
+            .update({ status: "success", paystack_data: data })
+            .eq("reference", data.reference);
+        }
+        if (userId) {
+          const periodEnd = new Date();
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+          await admin
+            .from("user_subscriptions")
+            .update({
+              plan: "premium",
+              billing_type: data?.metadata?.billing_type || (data.plan ? "subscription" : "one_time"),
+              paystack_customer_code: data?.customer?.customer_code || null,
+              current_period_end: periodEnd.toISOString(),
+            })
+            .eq("user_id", userId);
+        }
+        break;
+      }
+      case "subscription.create": {
+        const customerCode = data?.customer?.customer_code;
+        if (customerCode) {
+          await admin
+            .from("user_subscriptions")
+            .update({
+              paystack_subscription_code: data?.subscription_code || null,
+              paystack_email_token: data?.email_token || null,
+              billing_type: "subscription",
+              plan: "premium",
+            })
+            .eq("paystack_customer_code", customerCode);
+        }
+        break;
+      }
+      case "subscription.disable":
+      case "subscription.not_renew": {
+        const customerCode = data?.customer?.customer_code;
+        if (customerCode) {
+          await admin
+            .from("user_subscriptions")
+            .update({ plan: "free", billing_type: null })
+            .eq("paystack_customer_code", customerCode);
+        }
+        break;
+      }
+      default:
+        // Acknowledge other events
+        break;
+    }
+  } catch (err) {
+    console.error("webhook handler error:", err);
+  }
+
+  return new Response("ok", { status: 200, headers: corsHeaders });
+});
