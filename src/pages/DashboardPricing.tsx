@@ -10,9 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { CheckCircle, XCircle, Crown, Loader2 } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Crown,
+  Loader2,
+  Repeat,
+  Zap,
+  AlertTriangle,
+  ShieldCheck,
+} from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +33,21 @@ const DashboardPricing = () => {
   const { toast } = useToast();
   const [upgrading, setUpgrading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [planStatus, setPlanStatus] = useState<{
+    has_plan_code: boolean;
+    plan_code_preview: string | null;
+  } | null>(null);
+
+  // Fetch Paystack config status when dialog opens
+  useEffect(() => {
+    if (!checkoutOpen || planStatus) return;
+    supabase.functions
+      .invoke("paystack-config", { body: {} })
+      .then(({ data }) => {
+        if (data) setPlanStatus(data);
+      })
+      .catch(() => {});
+  }, [checkoutOpen, planStatus]);
   const [billingType, setBillingType] = useState<"one_time" | "subscription">("subscription");
   const [verifying, setVerifying] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -251,36 +273,94 @@ const DashboardPricing = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <RadioGroup
-            value={billingType}
-            onValueChange={(v) => setBillingType(v as "one_time" | "subscription")}
-            className="space-y-3"
+          {/* Segmented toggle */}
+          <div
+            role="radiogroup"
+            aria-label="Billing type"
+            className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/40 p-1"
           >
-            <Label
-              htmlFor="opt-sub"
-              className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:border-primary"
+            <button
+              type="button"
+              role="radio"
+              aria-checked={billingType === "subscription"}
+              onClick={() => setBillingType("subscription")}
+              className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                billingType === "subscription"
+                  ? "bg-background text-foreground shadow-sm ring-1 ring-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <RadioGroupItem value="subscription" id="opt-sub" className="mt-1" />
-              <div className="flex-1">
-                <div className="font-medium">Monthly subscription · $29/mo</div>
-                <p className="text-sm text-muted-foreground">
-                  Auto-renews each month. Cancel anytime.
+              <Repeat className="h-4 w-4" /> Monthly
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={billingType === "one_time"}
+              onClick={() => setBillingType("one_time")}
+              className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                billingType === "one_time"
+                  ? "bg-background text-foreground shadow-sm ring-1 ring-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Zap className="h-4 w-4" /> One-time
+            </button>
+          </div>
+
+          {/* Selected option summary */}
+          <div className="rounded-lg border p-4 space-y-3">
+            {billingType === "subscription" ? (
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Monthly subscription</div>
+                  <div className="font-display text-lg font-bold">$29<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Auto-renews each month via Paystack. Cancel anytime.
                 </p>
+
+                {/* Paystack plan-code status */}
+                <div className="mt-3 flex items-start gap-2 rounded-md bg-muted/50 p-3 text-xs">
+                  {planStatus === null ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground">Checking Paystack plan configuration…</span>
+                    </>
+                  ) : planStatus.has_plan_code ? (
+                    <>
+                      <ShieldCheck className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-medium text-foreground">Recurring plan configured</div>
+                        <div className="text-muted-foreground">
+                          Plan code: <code className="font-mono">{planStatus.plan_code_preview}</code>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-medium text-foreground">No Paystack plan code set</div>
+                        <div className="text-muted-foreground">
+                          You'll be charged once for $29 (no auto-renewal). Add a <code className="font-mono">PAYSTACK_PLAN_CODE</code> secret to enable true recurring billing.
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </Label>
-            <Label
-              htmlFor="opt-once"
-              className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer hover:border-primary"
-            >
-              <RadioGroupItem value="one_time" id="opt-once" className="mt-1" />
-              <div className="flex-1">
-                <div className="font-medium">One-time payment · $29</div>
-                <p className="text-sm text-muted-foreground">
+            ) : (
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">One-time payment</div>
+                  <div className="font-display text-lg font-bold">$29</div>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
                   30 days of Premium access. No automatic renewal.
                 </p>
               </div>
-            </Label>
-          </RadioGroup>
+            )}
+          </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCheckoutOpen(false)} disabled={upgrading}>
