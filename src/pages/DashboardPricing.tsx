@@ -109,10 +109,7 @@ const DashboardPricing = () => {
     if (!user) return;
     setUpgrading(true);
     try {
-      const { error } = await supabase
-        .from("user_subscriptions")
-        .update({ plan: "free", billing_type: null })
-        .eq("user_id", user.id);
+      const { error } = await supabase.functions.invoke("paystack-cancel");
       if (error) throw error;
       toast({ title: "Downgraded to Free", description: "Your plan has been changed." });
       window.location.reload();
