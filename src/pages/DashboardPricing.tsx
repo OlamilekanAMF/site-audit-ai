@@ -328,9 +328,7 @@ const DashboardPricing = () => {
                       <ShieldCheck className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-foreground">Recurring plan configured</div>
-                        <div className="text-muted-foreground">
-                          Plan code: <code className="font-mono">{planStatus.plan_code_preview}</code>
-                        </div>
+                        <div className="text-muted-foreground">Monthly subscription billing is enabled.</div>
                       </div>
                     </>
                   ) : (
