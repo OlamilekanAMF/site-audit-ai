@@ -158,12 +158,31 @@ function analyzeHtml(html: string, url: string) {
   return { overallScore, categories, findings };
 }
 
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+
+async function requireAuth(req: Request, corsHeaders: Record<string, string>) {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return { error: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }) };
+  }
+  const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: authHeader } } });
+  const { data, error } = await client.auth.getClaims(authHeader.replace('Bearer ', ''));
+  if (error || !data?.claims) {
+    return { error: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }) };
+  }
+  return { userId: data.claims.sub as string };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const auth = await requireAuth(req, corsHeaders);
+    if ('error' in auth) return auth.error;
+
     const { url, scrapeData } = await req.json();
 
     if (!url || !scrapeData) {

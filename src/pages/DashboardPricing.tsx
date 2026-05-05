@@ -35,7 +35,6 @@ const DashboardPricing = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [planStatus, setPlanStatus] = useState<{
     has_plan_code: boolean;
-    plan_code_preview: string | null;
   } | null>(null);
 
   // Fetch Paystack config status when dialog opens
@@ -109,10 +108,7 @@ const DashboardPricing = () => {
     if (!user) return;
     setUpgrading(true);
     try {
-      const { error } = await supabase
-        .from("user_subscriptions")
-        .update({ plan: "free", billing_type: null })
-        .eq("user_id", user.id);
+      const { error } = await supabase.functions.invoke("paystack-cancel");
       if (error) throw error;
       toast({ title: "Downgraded to Free", description: "Your plan has been changed." });
       window.location.reload();
@@ -331,9 +327,7 @@ const DashboardPricing = () => {
                       <ShieldCheck className="h-4 w-4 text-accent shrink-0 mt-0.5" />
                       <div>
                         <div className="font-medium text-foreground">Recurring plan configured</div>
-                        <div className="text-muted-foreground">
-                          Plan code: <code className="font-mono">{planStatus.plan_code_preview}</code>
-                        </div>
+                        <div className="text-muted-foreground">Monthly subscription billing is enabled.</div>
                       </div>
                     </>
                   ) : (
