@@ -105,7 +105,7 @@ export function NotificationBell() {
           const row = payload.new as any;
           if (row.status !== "completed") return;
           setNotifications((prev) => [
-            { kind: "scan", id: row.id, url: row.url, overall_score: row.overall_score, created_at: row.created_at, read: true },
+            { kind: "scan" as const, id: row.id, url: row.url, overall_score: row.overall_score, created_at: row.created_at, read: true },
             ...prev,
           ].slice(0, 20));
         }
