@@ -118,7 +118,7 @@ export function NotificationBell() {
           if (a.user_id !== user.id) return;
           setNotifications((prev) => [
             {
-              kind: "security",
+              kind: "security" as const,
               id: a.id,
               title: a.title,
               description: a.description,
