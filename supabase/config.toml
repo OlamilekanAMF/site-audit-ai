@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.paystack-config]
 verify_jwt = false
+
+[functions.paystack-cancel]
+verify_jwt = false
