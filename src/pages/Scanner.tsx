@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Loader2, Globe, Zap, Crown, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { detectSecurityRisks } from "@/lib/securityRisks";
 
 const Scanner = () => {
   const [url, setUrl] = useState("");
@@ -77,11 +78,33 @@ const Scanner = () => {
 
       if (insertError) throw insertError;
 
+      // Detect security risks and create dashboard alerts
+      const risks = detectSecurityRisks(psiData, formattedUrl);
+      if (risks.length > 0) {
+        await supabase.from("security_alerts").insert(
+          risks.map((r) => ({
+            user_id: user.id,
+            source: "website_scan",
+            severity: r.severity,
+            title: r.title,
+            description: r.description,
+            scan_report_id: insertData.id,
+            site_url: formattedUrl,
+          }))
+        );
+      }
+
       incrementScanCount();
       setProgress(100);
       setStatusText("Complete!");
 
-      toast({ title: "Scan complete!", description: `Overall Score: ${psiData.overallScore}/100` });
+      toast({
+        title: "Scan complete!",
+        description: risks.length > 0
+          ? `Score ${psiData.overallScore}/100 — ${risks.length} security risk${risks.length > 1 ? "s" : ""} detected`
+          : `Overall Score: ${psiData.overallScore}/100`,
+        variant: risks.length > 0 ? "destructive" : "default",
+      });
       navigate(`/report/${insertData.id}`);
     } catch (error: any) {
       console.error("Scan error:", error);

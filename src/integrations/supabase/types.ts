@@ -223,6 +223,45 @@ export type Database = {
         }
         Relationships: []
       }
+      security_alerts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          read: boolean
+          scan_report_id: string | null
+          severity: string
+          site_url: string | null
+          source: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          read?: boolean
+          scan_report_id?: string | null
+          severity: string
+          site_url?: string | null
+          source: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          read?: boolean
+          scan_report_id?: string | null
+          severity?: string
+          site_url?: string | null
+          source?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       seo_reports: {
         Row: {
           created_at: string
