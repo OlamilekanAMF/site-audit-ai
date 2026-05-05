@@ -35,7 +35,6 @@ const DashboardPricing = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [planStatus, setPlanStatus] = useState<{
     has_plan_code: boolean;
-    };
   } | null>(null);
 
   // Fetch Paystack config status when dialog opens
