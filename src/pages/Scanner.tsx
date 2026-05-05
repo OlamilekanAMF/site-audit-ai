@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Loader2, Globe, Zap, Crown, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { detectSecurityRisks } from "@/lib/securityRisks";
 
 const Scanner = () => {
   const [url, setUrl] = useState("");
