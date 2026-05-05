@@ -64,10 +64,8 @@ export function useSubscription() {
           currentPeriodEnd: periodEnd ?? null,
           status,
         });
-      } else {
-        // Create default subscription for existing users
-        await supabase.from("user_subscriptions").insert({ user_id: user.id, plan: "free" });
       }
+      // Note: default 'free' subscription is auto-created by handle_new_user trigger.
 
       // Count scans this month
       const now = new Date();
