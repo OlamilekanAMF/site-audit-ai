@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
     // Make sure this transaction belongs to this user
     const { data: existing } = await adminClient
       .from("payment_transactions")
-      .select("user_id")
+      .select("user_id, status")
       .eq("reference", reference)
       .maybeSingle();
 
@@ -87,13 +87,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Idempotency: if this tx was already marked success, do not extend the subscription again.
+    const alreadyProcessed = existing?.status === "success";
+
     await adminClient
       .from("payment_transactions")
       .update({ status, paystack_data: tx })
       .eq("reference", reference);
 
-    if (status === "success") {
-      const periodEnd = new Date();
+    if (status === "success" && !alreadyProcessed) {
+      // Extend from current period_end if it's in the future, otherwise from now
+      const { data: sub } = await adminClient
+        .from("user_subscriptions")
+        .select("current_period_end")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const now = Date.now();
+      const baseMs = sub?.current_period_end ? new Date(sub.current_period_end).getTime() : now;
+      const startMs = isNaN(baseMs) || baseMs < now ? now : baseMs;
+      const periodEnd = new Date(startMs);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
       await adminClient
