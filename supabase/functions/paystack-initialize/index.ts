@@ -11,9 +11,22 @@ const PLAN_CODE = Deno.env.get("PAYSTACK_PLAN_CODE") || ""; // optional, used fo
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let paymentReference: string | null = null;
+  let adminClientForFailure: ReturnType<typeof createClient> | null = null;
   try {
-    const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (!PAYSTACK_SECRET_KEY) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const rawKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!rawKey) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const PAYSTACK_SECRET_KEY = rawKey.trim();
+    if (!PAYSTACK_SECRET_KEY.startsWith("sk_test_") && !PAYSTACK_SECRET_KEY.startsWith("sk_live_")) {
+      const hint = PAYSTACK_SECRET_KEY.startsWith("pk_")
+        ? "Looks like a PUBLIC key (pk_). Use the SECRET key."
+        : `Expected sk_test_ or sk_live_ prefix, got: ${PAYSTACK_SECRET_KEY.substring(0, 8)}...`;
+      throw new Error(`PAYSTACK_SECRET_KEY has invalid format. ${hint}`);
+    }
+    if (PAYSTACK_SECRET_KEY.length < 20) {
+      throw new Error("PAYSTACK_SECRET_KEY appears truncated. Copy the full key from Paystack.");
+    }
+    console.log(`[paystack-initialize] mode=${PAYSTACK_SECRET_KEY.startsWith("sk_live_") ? "live" : "test"}`);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -67,6 +80,24 @@ Deno.serve(async (req) => {
       payload.plan = PLAN_CODE;
     }
 
+
+    // Insert pending tx FIRST so we can mark it failed if Paystack errors
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    adminClientForFailure = adminClient;
+    paymentReference = reference;
+
+    await adminClient.from("payment_transactions").insert({
+      user_id: userId,
+      reference,
+      amount,
+      currency: "USD",
+      status: "pending",
+      billing_type: billingType,
+    });
+
     const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
@@ -79,27 +110,20 @@ Deno.serve(async (req) => {
     const psData = await psRes.json();
     if (!psRes.ok || !psData?.status) {
       console.error("Paystack init failed:", psData);
+      await adminClient
+        .from("payment_transactions")
+        .update({ status: "failed", paystack_data: psData ?? null })
+        .eq("reference", reference);
       return new Response(
         JSON.stringify({ error: psData?.message || "Failed to initialize payment" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Use service role to insert transaction record
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    await adminClient.from("payment_transactions").insert({
-      user_id: userId,
-      reference,
-      amount,
-      currency: "USD",
-      status: "pending",
-      billing_type: billingType,
-      paystack_data: psData.data,
-    });
+    await adminClient
+      .from("payment_transactions")
+      .update({ paystack_data: psData.data })
+      .eq("reference", reference);
 
     return new Response(
       JSON.stringify({
@@ -112,6 +136,14 @@ Deno.serve(async (req) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("paystack-initialize error:", message);
+    if (paymentReference && adminClientForFailure) {
+      try {
+        await adminClientForFailure
+          .from("payment_transactions")
+          .update({ status: "failed", paystack_data: { error: message } })
+          .eq("reference", paymentReference);
+      } catch (_) { /* ignore */ }
+    }
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

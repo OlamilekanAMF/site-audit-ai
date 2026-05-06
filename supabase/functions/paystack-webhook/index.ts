@@ -9,8 +9,14 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!PAYSTACK_SECRET_KEY) {
+  const rawKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (!rawKey) {
+    console.error("PAYSTACK_SECRET_KEY not configured");
+    return new Response("Server misconfigured", { status: 500, headers: corsHeaders });
+  }
+  const PAYSTACK_SECRET_KEY = rawKey.trim();
+  if (!PAYSTACK_SECRET_KEY.startsWith("sk_test_") && !PAYSTACK_SECRET_KEY.startsWith("sk_live_")) {
+    console.error("PAYSTACK_SECRET_KEY has invalid format");
     return new Response("Server misconfigured", { status: 500, headers: corsHeaders });
   }
 
@@ -41,14 +47,31 @@ Deno.serve(async (req) => {
   try {
     switch (event.event) {
       case "charge.success": {
+        // Idempotency: skip if this reference is already marked success
+        let alreadyProcessed = false;
         if (data.reference) {
+          const { data: existing } = await admin
+            .from("payment_transactions")
+            .select("status")
+            .eq("reference", data.reference)
+            .maybeSingle();
+          alreadyProcessed = existing?.status === "success";
           await admin
             .from("payment_transactions")
             .update({ status: "success", paystack_data: data })
             .eq("reference", data.reference);
         }
-        if (userId) {
-          const periodEnd = new Date();
+        if (userId && !alreadyProcessed) {
+          // Extend from existing period_end if it's still in the future
+          const { data: sub } = await admin
+            .from("user_subscriptions")
+            .select("current_period_end")
+            .eq("user_id", userId)
+            .maybeSingle();
+          const now = Date.now();
+          const baseMs = sub?.current_period_end ? new Date(sub.current_period_end).getTime() : now;
+          const startMs = isNaN(baseMs) || baseMs < now ? now : baseMs;
+          const periodEnd = new Date(startMs);
           periodEnd.setMonth(periodEnd.getMonth() + 1);
           await admin
             .from("user_subscriptions")

@@ -9,8 +9,14 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (!PAYSTACK_SECRET_KEY) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const rawKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!rawKey) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const PAYSTACK_SECRET_KEY = rawKey.trim();
+    if (!PAYSTACK_SECRET_KEY.startsWith("sk_test_") && !PAYSTACK_SECRET_KEY.startsWith("sk_live_")) {
+      throw new Error(
+        `PAYSTACK_SECRET_KEY has invalid format. Expected sk_test_ or sk_live_ prefix, got: ${PAYSTACK_SECRET_KEY.substring(0, 8)}...`
+      );
+    }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -70,7 +76,7 @@ Deno.serve(async (req) => {
     // Make sure this transaction belongs to this user
     const { data: existing } = await adminClient
       .from("payment_transactions")
-      .select("user_id")
+      .select("user_id, status")
       .eq("reference", reference)
       .maybeSingle();
 
@@ -81,13 +87,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Idempotency: if this tx was already marked success, do not extend the subscription again.
+    const alreadyProcessed = existing?.status === "success";
+
     await adminClient
       .from("payment_transactions")
       .update({ status, paystack_data: tx })
       .eq("reference", reference);
 
-    if (status === "success") {
-      const periodEnd = new Date();
+    if (status === "success" && !alreadyProcessed) {
+      // Extend from current period_end if it's in the future, otherwise from now
+      const { data: sub } = await adminClient
+        .from("user_subscriptions")
+        .select("current_period_end")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      const now = Date.now();
+      const baseMs = sub?.current_period_end ? new Date(sub.current_period_end).getTime() : now;
+      const startMs = isNaN(baseMs) || baseMs < now ? now : baseMs;
+      const periodEnd = new Date(startMs);
       periodEnd.setMonth(periodEnd.getMonth() + 1);
 
       await adminClient
