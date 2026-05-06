@@ -89,20 +89,13 @@ Deno.serve(async (req) => {
       body: JSON.stringify(payload),
     });
 
-    const psData = await psRes.json();
-    if (!psRes.ok || !psData?.status) {
-      console.error("Paystack init failed:", psData);
-      return new Response(
-        JSON.stringify({ error: psData?.message || "Failed to initialize payment" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Use service role to insert transaction record
+    // Insert pending tx FIRST so we can mark it failed if Paystack errors
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+    adminClientForFailure = adminClient;
+    paymentReference = reference;
 
     await adminClient.from("payment_transactions").insert({
       user_id: userId,
@@ -111,8 +104,34 @@ Deno.serve(async (req) => {
       currency: "USD",
       status: "pending",
       billing_type: billingType,
-      paystack_data: psData.data,
     });
+
+    const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const psData = await psRes.json();
+    if (!psRes.ok || !psData?.status) {
+      console.error("Paystack init failed:", psData);
+      await adminClient
+        .from("payment_transactions")
+        .update({ status: "failed", paystack_data: psData ?? null })
+        .eq("reference", reference);
+      return new Response(
+        JSON.stringify({ error: psData?.message || "Failed to initialize payment" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    await adminClient
+      .from("payment_transactions")
+      .update({ paystack_data: psData.data })
+      .eq("reference", reference);
 
     return new Response(
       JSON.stringify({
@@ -125,6 +144,14 @@ Deno.serve(async (req) => {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("paystack-initialize error:", message);
+    if (paymentReference && adminClientForFailure) {
+      try {
+        await adminClientForFailure
+          .from("payment_transactions")
+          .update({ status: "failed", paystack_data: { error: message } })
+          .eq("reference", paymentReference);
+      } catch (_) { /* ignore */ }
+    }
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
