@@ -109,6 +109,48 @@ const DashboardPricing = () => {
         },
       });
       if (error) throw error;
+      if (!data?.access_code) throw new Error("No checkout reference returned");
+
+      // Prefer Paystack Inline if public key is available and script loaded
+      const PaystackPop = (window as any).PaystackPop;
+      if (planStatus?.public_key && PaystackPop) {
+        const handler = PaystackPop.setup({
+          key: planStatus.public_key,
+          email: user.email,
+          amount: 1900,
+          currency: "USD",
+          ref: data.reference,
+          plan: billingType === "subscription" ? planStatus.plan_code || undefined : undefined,
+          onClose: () => setUpgrading(false),
+          callback: (response: { reference: string }) => {
+            // Verify on the server before activating
+            supabase.functions
+              .invoke("paystack-verify", { body: { reference: response.reference } })
+              .then(({ data: vd, error: verr }) => {
+                if (verr) throw verr;
+                if (vd?.status === "success") {
+                  toast({ title: "Payment successful!", description: "Welcome to Premium." });
+                  setTimeout(() => window.location.replace("/dashboard/pricing"), 1000);
+                } else {
+                  toast({
+                    title: "Payment not completed",
+                    description: `Status: ${vd?.status || "unknown"}`,
+                    variant: "destructive",
+                  });
+                  setUpgrading(false);
+                }
+              })
+              .catch((e) => {
+                toast({ title: "Verification failed", description: e.message, variant: "destructive" });
+                setUpgrading(false);
+              });
+          },
+        });
+        handler.openIframe();
+        return;
+      }
+
+      // Fallback: redirect checkout
       if (!data?.authorization_url) throw new Error("No checkout URL returned");
       window.location.href = data.authorization_url;
     } catch (err: any) {
