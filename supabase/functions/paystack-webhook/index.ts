@@ -9,8 +9,14 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!PAYSTACK_SECRET_KEY) {
+  const rawKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (!rawKey) {
+    console.error("PAYSTACK_SECRET_KEY not configured");
+    return new Response("Server misconfigured", { status: 500, headers: corsHeaders });
+  }
+  const PAYSTACK_SECRET_KEY = rawKey.trim();
+  if (!PAYSTACK_SECRET_KEY.startsWith("sk_test_") && !PAYSTACK_SECRET_KEY.startsWith("sk_live_")) {
+    console.error("PAYSTACK_SECRET_KEY has invalid format");
     return new Response("Server misconfigured", { status: 500, headers: corsHeaders });
   }
 
