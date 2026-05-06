@@ -111,6 +111,18 @@ Deno.serve(async (req) => {
         }
         break;
       }
+      case "invoice.payment_failed":
+      case "invoice.failed": {
+        const customerCode = data?.customer?.customer_code;
+        if (customerCode) {
+          // Mark inactive but keep subscription record for retry
+          await admin
+            .from("user_subscriptions")
+            .update({ plan: "free" })
+            .eq("paystack_customer_code", customerCode);
+        }
+        break;
+      }
       default:
         // Acknowledge other events
         break;
