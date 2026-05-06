@@ -195,7 +195,7 @@ const DashboardPricing = () => {
     },
     {
       name: "Premium",
-      price: "$29",
+      price: "$19",
       period: "per month",
       description: "For professionals who need deeper insights",
       features: [
@@ -364,7 +364,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">Monthly subscription</div>
-                  <div className="font-display text-lg font-bold">$29<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  <div className="font-display text-lg font-bold">$19<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Auto-renews each month via Paystack. Cancel anytime.
@@ -391,7 +391,7 @@ const DashboardPricing = () => {
                       <div>
                         <div className="font-medium text-foreground">No Paystack plan code set</div>
                         <div className="text-muted-foreground">
-                          You'll be charged once for $29 (no auto-renewal). Add a <code className="font-mono">PAYSTACK_PLAN_CODE</code> secret to enable true recurring billing.
+                          You'll be charged once for $19 (no auto-renewal). Add a <code className="font-mono">PAYSTACK_PLAN_CODE</code> secret to enable true recurring billing.
                         </div>
                       </div>
                     </>
@@ -402,7 +402,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">One-time payment</div>
-                  <div className="font-display text-lg font-bold">$29</div>
+                  <div className="font-display text-lg font-bold">$19</div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   30 days of Premium access. No automatic renewal.
