@@ -80,14 +80,6 @@ Deno.serve(async (req) => {
       payload.plan = PLAN_CODE;
     }
 
-    const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
 
     // Insert pending tx FIRST so we can mark it failed if Paystack errors
     const adminClient = createClient(
