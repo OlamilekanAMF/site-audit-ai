@@ -35,6 +35,8 @@ const DashboardPricing = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [planStatus, setPlanStatus] = useState<{
     has_plan_code: boolean;
+    plan_code: string | null;
+    public_key: string | null;
   } | null>(null);
 
   // Fetch Paystack config status when dialog opens
@@ -47,6 +49,17 @@ const DashboardPricing = () => {
       })
       .catch(() => {});
   }, [checkoutOpen, planStatus]);
+
+  // Lazy-load Paystack inline script
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    if (document.getElementById("paystack-inline-js")) return;
+    const s = document.createElement("script");
+    s.id = "paystack-inline-js";
+    s.src = "https://js.paystack.co/v1/inline.js";
+    s.async = true;
+    document.body.appendChild(s);
+  }, [checkoutOpen]);
   const [billingType, setBillingType] = useState<"one_time" | "subscription">("subscription");
   const [verifying, setVerifying] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
