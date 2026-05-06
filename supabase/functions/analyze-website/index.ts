@@ -159,7 +159,7 @@ function analyzeHtml(html: string, url: string) {
 }
 
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 
 async function requireAuth(req: Request, corsHeaders: Record<string, string>) {
   const authHeader = req.headers.get('Authorization');

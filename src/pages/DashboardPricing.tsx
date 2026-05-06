@@ -35,6 +35,8 @@ const DashboardPricing = () => {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [planStatus, setPlanStatus] = useState<{
     has_plan_code: boolean;
+    plan_code: string | null;
+    public_key: string | null;
   } | null>(null);
 
   // Fetch Paystack config status when dialog opens
@@ -47,6 +49,17 @@ const DashboardPricing = () => {
       })
       .catch(() => {});
   }, [checkoutOpen, planStatus]);
+
+  // Lazy-load Paystack inline script
+  useEffect(() => {
+    if (!checkoutOpen) return;
+    if (document.getElementById("paystack-inline-js")) return;
+    const s = document.createElement("script");
+    s.id = "paystack-inline-js";
+    s.src = "https://js.paystack.co/v1/inline.js";
+    s.async = true;
+    document.body.appendChild(s);
+  }, [checkoutOpen]);
   const [billingType, setBillingType] = useState<"one_time" | "subscription">("subscription");
   const [verifying, setVerifying] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,6 +109,48 @@ const DashboardPricing = () => {
         },
       });
       if (error) throw error;
+      if (!data?.access_code) throw new Error("No checkout reference returned");
+
+      // Prefer Paystack Inline if public key is available and script loaded
+      const PaystackPop = (window as any).PaystackPop;
+      if (planStatus?.public_key && PaystackPop) {
+        const handler = PaystackPop.setup({
+          key: planStatus.public_key,
+          email: user.email,
+          amount: 1900,
+          currency: "USD",
+          ref: data.reference,
+          plan: billingType === "subscription" ? planStatus.plan_code || undefined : undefined,
+          onClose: () => setUpgrading(false),
+          callback: (response: { reference: string }) => {
+            // Verify on the server before activating
+            supabase.functions
+              .invoke("paystack-verify", { body: { reference: response.reference } })
+              .then(({ data: vd, error: verr }) => {
+                if (verr) throw verr;
+                if (vd?.status === "success") {
+                  toast({ title: "Payment successful!", description: "Welcome to Premium." });
+                  setTimeout(() => window.location.replace("/dashboard/pricing"), 1000);
+                } else {
+                  toast({
+                    title: "Payment not completed",
+                    description: `Status: ${vd?.status || "unknown"}`,
+                    variant: "destructive",
+                  });
+                  setUpgrading(false);
+                }
+              })
+              .catch((e) => {
+                toast({ title: "Verification failed", description: e.message, variant: "destructive" });
+                setUpgrading(false);
+              });
+          },
+        });
+        handler.openIframe();
+        return;
+      }
+
+      // Fallback: redirect checkout
       if (!data?.authorization_url) throw new Error("No checkout URL returned");
       window.location.href = data.authorization_url;
     } catch (err: any) {
@@ -140,7 +195,7 @@ const DashboardPricing = () => {
     },
     {
       name: "Premium",
-      price: "$29",
+      price: "$19",
       period: "per month",
       description: "For professionals who need deeper insights",
       features: [
@@ -309,7 +364,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">Monthly subscription</div>
-                  <div className="font-display text-lg font-bold">$29<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  <div className="font-display text-lg font-bold">$19<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Auto-renews each month via Paystack. Cancel anytime.
@@ -336,7 +391,7 @@ const DashboardPricing = () => {
                       <div>
                         <div className="font-medium text-foreground">No Paystack plan code set</div>
                         <div className="text-muted-foreground">
-                          You'll be charged once for $29 (no auto-renewal). Add a <code className="font-mono">PAYSTACK_PLAN_CODE</code> secret to enable true recurring billing.
+                          You'll be charged once for $19 (no auto-renewal). Add a <code className="font-mono">PAYSTACK_PLAN_CODE</code> secret to enable true recurring billing.
                         </div>
                       </div>
                     </>
@@ -347,7 +402,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">One-time payment</div>
-                  <div className="font-display text-lg font-bold">$29</div>
+                  <div className="font-display text-lg font-bold">$19</div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   30 days of Premium access. No automatic renewal.

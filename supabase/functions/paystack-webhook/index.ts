@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { createHmac } from "node:crypto";
 
 const corsHeaders = {
@@ -107,6 +107,18 @@ Deno.serve(async (req) => {
           await admin
             .from("user_subscriptions")
             .update({ plan: "free", billing_type: null })
+            .eq("paystack_customer_code", customerCode);
+        }
+        break;
+      }
+      case "invoice.payment_failed":
+      case "invoice.failed": {
+        const customerCode = data?.customer?.customer_code;
+        if (customerCode) {
+          // Mark inactive but keep subscription record for retry
+          await admin
+            .from("user_subscriptions")
+            .update({ plan: "free" })
             .eq("paystack_customer_code", customerCode);
         }
         break;

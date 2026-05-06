@@ -1,11 +1,11 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PREMIUM_AMOUNT_USD = 29; // $29
+const PREMIUM_AMOUNT_USD = 19; // $19
 const PLAN_CODE = Deno.env.get("PAYSTACK_PLAN_CODE") || ""; // optional, used for subscriptions
 
 Deno.serve(async (req) => {
