@@ -11,9 +11,22 @@ const PLAN_CODE = Deno.env.get("PAYSTACK_PLAN_CODE") || ""; // optional, used fo
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  let paymentReference: string | null = null;
+  let adminClientForFailure: ReturnType<typeof createClient> | null = null;
   try {
-    const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-    if (!PAYSTACK_SECRET_KEY) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const rawKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!rawKey) throw new Error("PAYSTACK_SECRET_KEY not configured");
+    const PAYSTACK_SECRET_KEY = rawKey.trim();
+    if (!PAYSTACK_SECRET_KEY.startsWith("sk_test_") && !PAYSTACK_SECRET_KEY.startsWith("sk_live_")) {
+      const hint = PAYSTACK_SECRET_KEY.startsWith("pk_")
+        ? "Looks like a PUBLIC key (pk_). Use the SECRET key."
+        : `Expected sk_test_ or sk_live_ prefix, got: ${PAYSTACK_SECRET_KEY.substring(0, 8)}...`;
+      throw new Error(`PAYSTACK_SECRET_KEY has invalid format. ${hint}`);
+    }
+    if (PAYSTACK_SECRET_KEY.length < 20) {
+      throw new Error("PAYSTACK_SECRET_KEY appears truncated. Copy the full key from Paystack.");
+    }
+    console.log(`[paystack-initialize] mode=${PAYSTACK_SECRET_KEY.startsWith("sk_live_") ? "live" : "test"}`);
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
