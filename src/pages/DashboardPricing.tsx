@@ -237,10 +237,11 @@ const DashboardPricing = () => {
         <div>
           <h1 className="font-display text-2xl font-bold">Billing & Plans</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Choose the plan that fits your needs. Currently on:{" "}
-            <Badge variant="secondary" className="ml-1 capitalize">{plan}</Badge>
+            Manage your subscription and choose the plan that fits your needs.
           </p>
         </div>
+
+        <BillingSummary />
 
         {verifying && (
           <Card className="border-primary/30">
