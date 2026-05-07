@@ -299,6 +299,9 @@ const Dashboard = () => {
           </Card>
         </div>
 
+        {/* Billing Summary */}
+        <BillingSummary />
+
         {/* Recent Scans */}
         <Card>
           <CardHeader className="pb-3">
