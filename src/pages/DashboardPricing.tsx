@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
 
 const DashboardPricing = () => {
-  const { plan, isPremium } = useSubscription();
+  const { plan, isPremium, subscription, scansThisMonth, FREE_SCAN_LIMIT } = useSubscription();
   const { user } = useAuth();
   const { toast } = useToast();
   const [upgrading, setUpgrading] = useState(false);
