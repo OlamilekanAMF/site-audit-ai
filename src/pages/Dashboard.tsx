@@ -25,6 +25,7 @@ import {
   Target,
   ArrowUpRight,
 } from "lucide-react";
+import { BillingSummary } from "@/components/BillingSummary";
 import {
   ChartContainer,
   ChartTooltip,
