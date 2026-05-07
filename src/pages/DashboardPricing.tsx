@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "react-router-dom";
+import { BillingSummary } from "@/components/BillingSummary";
 
 const DashboardPricing = () => {
   const { plan, isPremium, subscription, scansThisMonth, FREE_SCAN_LIMIT } = useSubscription();
