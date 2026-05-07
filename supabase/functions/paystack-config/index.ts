@@ -13,8 +13,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
   const client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-  const { data, error } = await client.auth.getClaims(authHeader.replace("Bearer ", ""));
-  if (error || !data?.claims) {
+  const { data, error } = await client.auth.getUser(authHeader.replace("Bearer ", ""));
+  if (error || !data?.user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
