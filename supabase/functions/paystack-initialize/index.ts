@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
       user_id: userId,
       reference,
       amount,
-      currency: "USD",
+      currency,
       status: "pending",
       billing_type: billingType,
     });
