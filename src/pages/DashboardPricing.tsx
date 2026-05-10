@@ -110,8 +110,25 @@ const DashboardPricing = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const pickSuggestion = (failed: string, alreadyFailed: string[]): string | null => {
+    const exclude = new Set([...alreadyFailed, failed]);
+    const preferred = ["NGN", "USD", "GHS", "ZAR", "KES"];
+    return preferred.find((c) => !exclude.has(c)) ?? null;
+  };
+
   const startCheckout = async () => {
     if (!user) return;
+    setCurrencyError(null);
+    if (unsupportedCurrencies.includes(currency)) {
+      const suggestion = pickSuggestion(currency, unsupportedCurrencies);
+      setCurrencyError({ attempted: currency, suggestion });
+      toast({
+        title: `${currency} is not supported by this Paystack account`,
+        description: suggestion ? `Try ${suggestion} instead.` : "Please choose a different currency.",
+        variant: "destructive",
+      });
+      return;
+    }
     setUpgrading(true);
     try {
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
@@ -121,7 +138,35 @@ const DashboardPricing = () => {
           callback_url: `${window.location.origin}/dashboard/pricing`,
         },
       });
-      if (error) throw error;
+
+      if (error) {
+        // Try to read structured error body (FunctionsHttpError exposes response in .context)
+        let body: any = null;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") body = await ctx.json();
+          else if (ctx && typeof ctx.text === "function") body = JSON.parse(await ctx.text());
+        } catch (_) { /* ignore */ }
+
+        if (body?.code === "unsupported_currency") {
+          const failed = body.attempted_currency || currency;
+          const nextFailed = Array.from(new Set([...unsupportedCurrencies, failed]));
+          setUnsupportedCurrencies(nextFailed);
+          const suggestion = pickSuggestion(failed, nextFailed);
+          setCurrencyError({ attempted: failed, suggestion });
+          toast({
+            title: `${failed} is not supported by this Paystack account`,
+            description: suggestion
+              ? `Try ${suggestion} instead — your merchant account doesn't have ${failed} enabled.`
+              : `Your merchant account doesn't have ${failed} enabled and no fallback currency is available.`,
+            variant: "destructive",
+          });
+          if (suggestion) setCurrency(suggestion as typeof currency);
+          setUpgrading(false);
+          return;
+        }
+        throw new Error(body?.error || error.message);
+      }
       if (!data?.access_code) throw new Error("No checkout reference returned");
 
       // Prefer Paystack Inline if public key is available and script loaded
@@ -136,7 +181,6 @@ const DashboardPricing = () => {
           plan: data.used_plan ? planStatus.plan_code || undefined : undefined,
           onClose: () => setUpgrading(false),
           callback: (response: { reference: string }) => {
-            // Verify on the server before activating
             supabase.functions
               .invoke("paystack-verify", { body: { reference: response.reference } })
               .then(({ data: vd, error: verr }) => {
