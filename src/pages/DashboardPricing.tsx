@@ -422,7 +422,10 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">Monthly subscription</div>
-                  <div className="font-display text-lg font-bold">{currentPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs">{currency}</Badge>
+                    <div className="font-display text-lg font-bold">{currentPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Auto-renews each month via Paystack. Cancel anytime.
