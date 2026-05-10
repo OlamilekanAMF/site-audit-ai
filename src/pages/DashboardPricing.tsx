@@ -73,6 +73,8 @@ const DashboardPricing = () => {
   const currentPrice = CURRENCIES.find((c) => c.code === currency)?.price ?? "$19";
   const [verifying, setVerifying] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [unsupportedCurrencies, setUnsupportedCurrencies] = useState<string[]>([]);
+  const [currencyError, setCurrencyError] = useState<{ attempted: string; suggestion: string | null } | null>(null);
 
   // Verify Paystack redirect
   useEffect(() => {
