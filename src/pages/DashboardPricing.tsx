@@ -416,11 +416,21 @@ const DashboardPricing = () => {
               className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             >
               {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.label} — {c.price}
+                <option key={c.code} value={c.code} disabled={unsupportedCurrencies.includes(c.code)}>
+                  {c.label} — {c.price}{unsupportedCurrencies.includes(c.code) ? " (not supported)" : ""}
                 </option>
               ))}
             </select>
+            {currencyError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+                <div className="font-medium">{currencyError.attempted} isn't enabled on this Paystack account.</div>
+                {currencyError.suggestion && (
+                  <div className="mt-0.5 text-destructive/90">
+                    Try {currencyError.suggestion} instead — we've selected it for you.
+                  </div>
+                )}
+              </div>
+            )}
             {billingType === "subscription" && planStatus?.has_plan_code && currency !== "USD" && (
               <p className="text-xs text-yellow-600 dark:text-yellow-400">
                 Recurring plan is configured in its own currency. Your selection may be overridden by Paystack for subscriptions.
