@@ -128,10 +128,10 @@ const DashboardPricing = () => {
         const handler = PaystackPop.setup({
           key: planStatus.public_key,
           email: user.email,
-          amount: 1900,
-          currency: "USD",
+          amount: data.amount,
+          currency: data.currency,
           ref: data.reference,
-          plan: billingType === "subscription" ? planStatus.plan_code || undefined : undefined,
+          plan: data.used_plan ? planStatus.plan_code || undefined : undefined,
           onClose: () => setUpgrading(false),
           callback: (response: { reference: string }) => {
             // Verify on the server before activating
