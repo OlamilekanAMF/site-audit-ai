@@ -115,6 +115,7 @@ const DashboardPricing = () => {
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
         body: {
           billing_type: billingType,
+          currency,
           callback_url: `${window.location.origin}/dashboard/pricing`,
         },
       });
