@@ -62,6 +62,15 @@ const DashboardPricing = () => {
     document.body.appendChild(s);
   }, [checkoutOpen]);
   const [billingType, setBillingType] = useState<"one_time" | "subscription">("subscription");
+  const CURRENCIES = [
+    { code: "USD", label: "USD ($)", price: "$19" },
+    { code: "NGN", label: "NGN (₦)", price: "₦30,000" },
+    { code: "GHS", label: "GHS (₵)", price: "₵250" },
+    { code: "ZAR", label: "ZAR (R)", price: "R350" },
+    { code: "KES", label: "KES (KSh)", price: "KSh 2,500" },
+  ] as const;
+  const [currency, setCurrency] = useState<typeof CURRENCIES[number]["code"]>("USD");
+  const currentPrice = CURRENCIES.find((c) => c.code === currency)?.price ?? "$19";
   const [verifying, setVerifying] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -106,6 +115,7 @@ const DashboardPricing = () => {
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
         body: {
           billing_type: billingType,
+          currency,
           callback_url: `${window.location.origin}/dashboard/pricing`,
         },
       });
@@ -118,10 +128,10 @@ const DashboardPricing = () => {
         const handler = PaystackPop.setup({
           key: planStatus.public_key,
           email: user.email,
-          amount: 1900,
-          currency: "USD",
+          amount: data.amount,
+          currency: data.currency,
           ref: data.reference,
-          plan: billingType === "subscription" ? planStatus.plan_code || undefined : undefined,
+          plan: data.used_plan ? planStatus.plan_code || undefined : undefined,
           onClose: () => setUpgrading(false),
           callback: (response: { reference: string }) => {
             // Verify on the server before activating
@@ -326,6 +336,28 @@ const DashboardPricing = () => {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Currency selector */}
+          <div className="space-y-1.5">
+            <label htmlFor="currency-select" className="text-sm font-medium">Currency</label>
+            <select
+              id="currency-select"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as typeof currency)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label} — {c.price}
+                </option>
+              ))}
+            </select>
+            {billingType === "subscription" && planStatus?.has_plan_code && currency !== "USD" && (
+              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                Recurring plan is configured in its own currency. Your selection may be overridden by Paystack for subscriptions.
+              </p>
+            )}
+          </div>
+
           {/* Segmented toggle */}
           <div
             role="radiogroup"
@@ -366,7 +398,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">Monthly subscription</div>
-                  <div className="font-display text-lg font-bold">$19<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  <div className="font-display text-lg font-bold">{currentPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Auto-renews each month via Paystack. Cancel anytime.
@@ -404,7 +436,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">One-time payment</div>
-                  <div className="font-display text-lg font-bold">$19</div>
+                  <div className="font-display text-lg font-bold">{currentPrice}</div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   30 days of Premium access. No automatic renewal.

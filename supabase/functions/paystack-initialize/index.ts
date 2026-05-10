@@ -60,24 +60,38 @@ Deno.serve(async (req) => {
 
     const callbackUrl = body?.callback_url || `${req.headers.get("origin") || ""}/dashboard/pricing?paystack=success`;
 
-    // Paystack expects amounts in the smallest currency unit (cents for USD)
-    const amount = PREMIUM_AMOUNT_USD * 100;
+    // Per-currency price for Premium ($19 USD equivalent). Amounts are in the smallest unit (kobo/cents/pesewa).
+    const PRICE_BY_CURRENCY: Record<string, number> = {
+      USD: 19 * 100,
+      NGN: 30000 * 100,
+      GHS: 250 * 100,
+      ZAR: 350 * 100,
+      KES: 2500 * 100,
+    };
+    const requestedCurrency = String(body?.currency || "USD").toUpperCase();
+    const currency = PRICE_BY_CURRENCY[requestedCurrency] ? requestedCurrency : "USD";
+    const amount = PRICE_BY_CURRENCY[currency];
     const reference = `sd_${userId.slice(0, 8)}_${Date.now()}`;
+
+    const useSubscriptionPlan = billingType === "subscription" && !!PLAN_CODE;
 
     const payload: Record<string, unknown> = {
       email,
       amount,
-      currency: "USD",
       reference,
       callback_url: callbackUrl,
       metadata: {
         user_id: userId,
         billing_type: billingType,
+        requested_currency: currency,
       },
     };
 
-    if (billingType === "subscription" && PLAN_CODE) {
+    if (useSubscriptionPlan) {
+      // When a plan is attached, Paystack uses the plan's currency. Don't send currency.
       payload.plan = PLAN_CODE;
+    } else {
+      payload.currency = currency;
     }
 
 
@@ -93,7 +107,7 @@ Deno.serve(async (req) => {
       user_id: userId,
       reference,
       amount,
-      currency: "USD",
+      currency,
       status: "pending",
       billing_type: billingType,
     });
@@ -130,6 +144,9 @@ Deno.serve(async (req) => {
         authorization_url: psData.data.authorization_url,
         access_code: psData.data.access_code,
         reference,
+        currency,
+        amount,
+        used_plan: useSubscriptionPlan,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
