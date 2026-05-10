@@ -351,8 +351,8 @@ const DashboardPricing = () => {
                       className="w-full rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       {CURRENCIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.label} — {c.price}
+                        <option key={c.code} value={c.code} disabled={unsupportedCurrencies.includes(c.code)}>
+                          {c.label} — {c.price}{unsupportedCurrencies.includes(c.code) ? " (not supported)" : ""}
                         </option>
                       ))}
                     </select>
