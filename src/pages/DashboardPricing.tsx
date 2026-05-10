@@ -62,6 +62,15 @@ const DashboardPricing = () => {
     document.body.appendChild(s);
   }, [checkoutOpen]);
   const [billingType, setBillingType] = useState<"one_time" | "subscription">("subscription");
+  const CURRENCIES = [
+    { code: "USD", label: "USD ($)", price: "$19" },
+    { code: "NGN", label: "NGN (₦)", price: "₦30,000" },
+    { code: "GHS", label: "GHS (₵)", price: "₵250" },
+    { code: "ZAR", label: "ZAR (R)", price: "R350" },
+    { code: "KES", label: "KES (KSh)", price: "KSh 2,500" },
+  ] as const;
+  const [currency, setCurrency] = useState<typeof CURRENCIES[number]["code"]>("USD");
+  const currentPrice = CURRENCIES.find((c) => c.code === currency)?.price ?? "$19";
   const [verifying, setVerifying] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
