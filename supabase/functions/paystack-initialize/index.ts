@@ -128,9 +128,21 @@ Deno.serve(async (req) => {
         .from("payment_transactions")
         .update({ status: "failed", paystack_data: psData ?? null })
         .eq("reference", reference);
+
+      const rawMsg: string = psData?.message || "Failed to initialize payment";
+      const code: string | undefined = psData?.code;
+      const isUnsupportedCurrency =
+        code === "unsupported_currency" ||
+        /currency not supported/i.test(rawMsg) ||
+        /unsupported.*currency/i.test(rawMsg);
+
       return new Response(
-        JSON.stringify({ error: psData?.message || "Failed to initialize payment" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: rawMsg,
+          code: isUnsupportedCurrency ? "unsupported_currency" : code || "paystack_error",
+          attempted_currency: currency,
+        }),
+        { status: isUnsupportedCurrency ? 400 : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
