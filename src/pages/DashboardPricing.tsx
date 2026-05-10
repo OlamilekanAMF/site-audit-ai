@@ -436,7 +436,7 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">One-time payment</div>
-                  <div className="font-display text-lg font-bold">$19</div>
+                  <div className="font-display text-lg font-bold">{currentPrice}</div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   30 days of Premium access. No automatic renewal.
