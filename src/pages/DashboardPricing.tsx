@@ -336,6 +336,28 @@ const DashboardPricing = () => {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Currency selector */}
+          <div className="space-y-1.5">
+            <label htmlFor="currency-select" className="text-sm font-medium">Currency</label>
+            <select
+              id="currency-select"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as typeof currency)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.label} — {c.price}
+                </option>
+              ))}
+            </select>
+            {billingType === "subscription" && planStatus?.has_plan_code && currency !== "USD" && (
+              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                Recurring plan is configured in its own currency. Your selection may be overridden by Paystack for subscriptions.
+              </p>
+            )}
+          </div>
+
           {/* Segmented toggle */}
           <div
             role="radiogroup"
