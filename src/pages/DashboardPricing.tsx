@@ -206,7 +206,7 @@ const DashboardPricing = () => {
     },
     {
       name: "Premium",
-      price: "$19",
+      price: currentPrice,
       period: "per month",
       description: "For professionals who need deeper insights",
       features: [
@@ -282,12 +282,36 @@ const DashboardPricing = () => {
                 </Badge>
               )}
               <CardHeader>
-                <CardTitle className="font-display">{p.name}</CardTitle>
+                <CardTitle className="font-display flex items-center gap-2">
+                  {p.name}
+                  {p.name === "Premium" && !isPremium && (
+                    <Badge variant="outline" className="font-mono text-xs">{currency}</Badge>
+                  )}
+                </CardTitle>
                 <CardDescription>{p.description}</CardDescription>
                 <div className="mt-4">
                   <span className="font-display text-4xl font-bold">{p.price}</span>
                   <span className="text-muted-foreground ml-1">/{p.period}</span>
                 </div>
+                {p.name === "Premium" && !isPremium && (
+                  <div className="mt-3 space-y-1.5">
+                    <label htmlFor="card-currency" className="text-xs font-medium text-muted-foreground">
+                      Pay in
+                    </label>
+                    <select
+                      id="card-currency"
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value as typeof currency)}
+                      className="w-full rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.label} — {c.price}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="flex-1">
                 <ul className="space-y-3">
@@ -398,7 +422,10 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">Monthly subscription</div>
-                  <div className="font-display text-lg font-bold">{currentPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs">{currency}</Badge>
+                    <div className="font-display text-lg font-bold">{currentPrice}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   Auto-renews each month via Paystack. Cancel anytime.
@@ -436,7 +463,10 @@ const DashboardPricing = () => {
               <div>
                 <div className="flex items-center justify-between">
                   <div className="font-semibold">One-time payment</div>
-                  <div className="font-display text-lg font-bold">{currentPrice}</div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs">{currency}</Badge>
+                    <div className="font-display text-lg font-bold">{currentPrice}</div>
+                  </div>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   30 days of Premium access. No automatic renewal.
