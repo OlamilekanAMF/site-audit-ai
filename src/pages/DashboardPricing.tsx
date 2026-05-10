@@ -206,7 +206,7 @@ const DashboardPricing = () => {
     },
     {
       name: "Premium",
-      price: "$19",
+      price: currentPrice,
       period: "per month",
       description: "For professionals who need deeper insights",
       features: [
