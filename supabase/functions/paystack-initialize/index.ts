@@ -144,6 +144,9 @@ Deno.serve(async (req) => {
         authorization_url: psData.data.authorization_url,
         access_code: psData.data.access_code,
         reference,
+        currency,
+        amount,
+        used_plan: useSubscriptionPlan,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
