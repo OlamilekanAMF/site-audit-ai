@@ -35,7 +35,7 @@ export function useSubscription() {
       // Get subscription
       const { data: sub } = await supabase
         .from("user_subscriptions")
-        .select("plan, billing_type, paystack_subscription_code, current_period_end")
+        .select("plan, billing_type, current_period_end")
         .eq("user_id", user.id)
         .single();
 
@@ -48,9 +48,7 @@ export function useSubscription() {
 
         let status: SubscriptionStatus = "free";
         if (subPlan === "premium") {
-          if (sub.billing_type === "subscription") {
-            status = sub.paystack_subscription_code ? "active" : "canceled";
-          } else if (sub.billing_type === "one_time") {
+          if (sub.billing_type === "one_time") {
             status = periodActive ? "active" : "expired";
           } else {
             status = "active";
@@ -60,7 +58,7 @@ export function useSubscription() {
         setDetails({
           plan: subPlan,
           billingType: (sub.billing_type as "subscription" | "one_time" | null) ?? null,
-          paystackSubscriptionCode: sub.paystack_subscription_code ?? null,
+          paystackSubscriptionCode: null,
           currentPeriodEnd: periodEnd ?? null,
           status,
         });
