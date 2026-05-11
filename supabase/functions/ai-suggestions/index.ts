@@ -41,7 +41,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { url, mobile, desktop, coreWebVitals, loadTime, opportunities, diagnostics, detectedIssues } = scanResults;
+    const { url: rawUrl, mobile, desktop, coreWebVitals, loadTime, opportunities, diagnostics, detectedIssues } = scanResults;
+    let url = 'unknown';
+    try {
+      const parsed = new URL(String(rawUrl ?? '').startsWith('http') ? String(rawUrl) : `https://${rawUrl}`);
+      if (['http:', 'https:'].includes(parsed.protocol)) url = parsed.toString().slice(0, 500);
+    } catch { /* keep default */ }
 
     const systemPrompt = `You are a senior web performance, SEO, and UX consultant. Analyze the provided PageSpeed Insights data and detected issues, then generate specific, actionable optimization recommendations.
 

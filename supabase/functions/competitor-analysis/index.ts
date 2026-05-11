@@ -47,8 +47,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    const safeUrl = (raw: any): string | null => {
+      try {
+        const s = String(raw ?? '').trim();
+        if (!s) return null;
+        const parsed = new URL(s.startsWith('http') ? s : `https://${s}`);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return null;
+        return parsed.toString().slice(0, 500);
+      } catch { return null; }
+    };
+    const safeYourUrl = safeUrl(yourUrl);
+    const safeCompetitors = (competitorUrls as any[]).map(safeUrl).filter((u): u is string => !!u);
+    if (!safeYourUrl || safeCompetitors.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Invalid URLs provided" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const apiKey = Deno.env.get("GOOGLE_PAGESPEED_API_KEY");
-    const allUrls = [yourUrl, ...competitorUrls.slice(0, 4)];
+    const allUrls = [safeYourUrl, ...safeCompetitors.slice(0, 4)];
 
     const fetchPsi = async (url: string) => {
       let formatted = url.trim();
