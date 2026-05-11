@@ -26,6 +26,15 @@ Deno.serve(async (req) => {
     const auth = await requireAuth(req, corsHeaders);
     if ('error' in auth) return auth.error;
 
+    // Premium-only feature: verify subscription server-side
+    const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const { data: subRow } = await adminClient.from('user_subscriptions').select('plan, billing_type, current_period_end').eq('user_id', auth.userId).maybeSingle();
+    const periodActive = subRow?.current_period_end ? new Date(subRow.current_period_end).getTime() > Date.now() : true;
+    const isPremium = subRow?.plan === 'premium' && (subRow?.billing_type !== 'one_time' || periodActive);
+    if (!isPremium) {
+      return new Response(JSON.stringify({ success: false, error: 'Premium plan required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
 
