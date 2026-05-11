@@ -369,6 +369,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_scan: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -376,6 +377,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_premium: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
