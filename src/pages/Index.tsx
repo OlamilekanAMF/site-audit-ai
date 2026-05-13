@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -178,8 +179,27 @@ const fadeUp = {
 const Index = () => {
   const { theme, setTheme } = useTheme();
 
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>SiteDoctor AI — AI-Powered Website Audit & SEO Optimization</title>
+        <meta name="description" content="Scan any website and get AI-powered performance, SEO, accessibility, and security recommendations in minutes. Free plan available." />
+        <link rel="canonical" href="https://sitedoctoai.lovable.app/" />
+        <meta property="og:title" content="SiteDoctor AI — AI-Powered Website Audit & SEO Optimization" />
+        <meta property="og:description" content="Scan any website and get AI-powered performance, SEO, accessibility, and security recommendations in minutes." />
+        <meta property="og:url" content="https://sitedoctoai.lovable.app/" />
+        <script type="application/ld+json">{JSON.stringify(faqJsonLd)}</script>
+      </Helmet>
       {/* Nav */}
       <nav className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
