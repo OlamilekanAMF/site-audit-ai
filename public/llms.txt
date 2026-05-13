@@ -1,0 +1,15 @@
+# SiteDoctor AI
+
+> AI-powered website auditing and SEO optimization platform that scans sites for performance, SEO, accessibility, and security issues, then delivers prioritized, actionable fixes.
+
+SiteDoctor AI lets anyone enter a URL and instantly receive a detailed audit covering Core Web Vitals, on-page SEO, accessibility (WCAG), security best practices, and AI-generated optimization recommendations. Reports can be exported as branded PDFs, and Pro users unlock keyword research, competitor analysis, and ranking opportunities.
+
+## Pages
+
+- [Home](/): Product overview, features, pricing, and FAQ.
+- [Pricing](/pricing): Free, Pro, and Enterprise plans with feature comparison.
+- [Login](/login): Sign in or create an account.
+
+## Optional
+
+- [Reset Password](/reset-password): Account password recovery.
