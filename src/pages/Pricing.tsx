@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Stethoscope } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 const plans = [
   {
@@ -51,6 +52,14 @@ const plans = [
 const Pricing = () => {
   return (
     <div className="min-h-screen bg-background">
+      <Helmet>
+        <title>Pricing — SiteDoctor AI Plans for Website Audits & SEO</title>
+        <meta name="description" content="Compare SiteDoctor AI plans: Free for occasional scans, Pro for unlimited audits and PDF exports, Enterprise for teams and agencies." />
+        <link rel="canonical" href="https://sitedoctoai.lovable.app/pricing" />
+        <meta property="og:title" content="Pricing — SiteDoctor AI Plans for Website Audits & SEO" />
+        <meta property="og:description" content="Free, Pro, and Enterprise plans for AI-powered website audits, SEO, and competitor analysis." />
+        <meta property="og:url" content="https://sitedoctoai.lovable.app/pricing" />
+      </Helmet>
       {/* Nav */}
       <nav className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
