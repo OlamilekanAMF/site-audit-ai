@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Stethoscope } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -50,6 +51,11 @@ const Login = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <Helmet>
+        <title>Sign In — SiteDoctor AI</title>
+        <meta name="description" content="Log in to SiteDoctor AI to run AI-powered website audits, view scan history, and access SEO and competitor insights." />
+        <link rel="canonical" href="https://sitedoctoai.lovable.app/login" />
+      </Helmet>
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
           <Stethoscope className="h-8 w-8 text-primary" />
